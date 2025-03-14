@@ -1,0 +1,1 @@
+ C:\\Users\\SCD20240805\\S\\tudioProjects\\tagsnap\\.dart_tool\\flutter_build\\ee704f185cf8ace1327a368170b0ab9d\\native_assets.yaml: 
