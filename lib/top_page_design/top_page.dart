@@ -3,6 +3,7 @@ import 'package:tagsnap/top_page_design/top_inventory_btn.dart';
 import 'package:tagsnap/top_page_design/top_led_btn.dart';
 import 'package:tagsnap/top_page_design/top_loading_btn.dart';
 import 'package:tagsnap/top_page_design/top_location_btn.dart';
+import 'package:tagsnap/top_page_design/top_new_btn.dart';
 import 'package:tagsnap/top_page_design/top_qr_btn.dart';
 import 'package:tagsnap/top_page_design/top_search_btn.dart';
 import 'package:tagsnap/top_page_design/top_setting_btn.dart';
@@ -30,8 +31,8 @@ class _TopPageState extends State<TopPage> {
                 .padding
                 .top + 5
         ), // ステータスバーの高さを考慮した上部の余白を追加
+        child:SingleChildScrollView(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Padding(
@@ -59,9 +60,10 @@ class _TopPageState extends State<TopPage> {
             Center(child: TopLocationBtn()), //ロケーション管理ボタン
             SizedBox(height: 10),
             Center(child: TopQrBtn()), //QRコードボタン
+            SizedBox(height: 10),
+            Center(child: TopNewBtn()), //QRコードボタン
 
-            Spacer(),
-
+            SizedBox(height: 15),
             // アプリバージョン表示（下部に移動）
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
@@ -75,6 +77,7 @@ class _TopPageState extends State<TopPage> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
