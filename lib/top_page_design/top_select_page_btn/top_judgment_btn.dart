@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 
-
-class TopInventoryBtn extends StatefulWidget {
-  const TopInventoryBtn({super.key});
+class TopJudgmentBtn extends StatefulWidget {
+  const TopJudgmentBtn({super.key});
 
   @override
-  State<TopInventoryBtn> createState() => _TopInventoryButton();
+  State<TopJudgmentBtn> createState() => _TopJudgmentButton();
 }
 
-class _TopInventoryButton extends State<TopInventoryBtn> {
+class _TopJudgmentButton extends State<TopJudgmentBtn> {
   bool isPressed = false; //ボタン押下時の変化
 
   @override
@@ -27,7 +26,7 @@ class _TopInventoryButton extends State<TopInventoryBtn> {
         width: screenWidth * 0.7,
         height: 70,
         decoration: BoxDecoration(
-          // color: Color(0xFFE81A7E),
+          // color: Color(0xFFFD7B17),
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color:Colors.white, width: 2),
           boxShadow: isPressed
@@ -46,26 +45,28 @@ class _TopInventoryButton extends State<TopInventoryBtn> {
               : [
           ],
         ),
+
         child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
             Icon(
-            Icons.check_box,  // アイコンの追加
-            color: Colors.white,  // アイコンの色
-            size: 35,  // アイコンのサイズ
-          ),
-              SizedBox(height:  10),  // アイコンとテキストの間隔を空ける
-        Text(
-            '棚卸',
-            style: TextStyle(
-              fontSize: 20,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+              Icons.file_download_done,// アイコンの追加
+              color: Colors.white,  // アイコンの色
+              size: 35,  // アイコンのサイズ
             ),
-          ),
+            SizedBox(height:  10),  // アイコンとテキストの間隔を空ける
+            Text(
+              '真贋判定',
+              style: TextStyle(
+                fontSize: 20,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center, // テキストを中央揃え
+            ),
           ],
         ),
       ),
-      );
+    );
   }
 }

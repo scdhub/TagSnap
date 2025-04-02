@@ -39,7 +39,7 @@ class _TopPageState extends State<TopPage> {
 
         child: Column(
           children: [
-            SizedBox(height: 30,),
+            SizedBox(height: 50,),
             // 3×3のボタンレイアウト
             Expanded(
               child: Padding(
