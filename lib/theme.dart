@@ -2,11 +2,32 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // 全体的なメインカラー
-  static const Color primaryColor = Color(0xFFC9C9D1); // 基準色/背景色
+  static const Color primaryColor = Color(0xFF84848F); // 基準色/背景色
   static const Color textColor = Colors.white; // 全体のテキストカラー
   static const Color appBarTextColor = Colors.white; // AppBar全体の文字色
-static const Color iconColor = Colors.white; // アイコン全体の色
-static const Color buttonColor = Color(0xFF29B6F6); // ボタン全体の色（青系）
+  static const Color iconColor = Colors.white; // アイコン全体の色
+  static const Color buttonColor = Color(0xFF29B6F6); // ボタン全体の色（青系）
+
+  //確認ダイアログのボタン
+  static const Color confirmDialogButtonColor = Color(0xFFF06292);
+  static const Color confirmDialogBorderColor = Color(0xFFEF85A9);
+
+  // ダイアログテーマ（確認ダイアログ）
+  static final confirmDialogTheme = DialogTheme(
+    backgroundColor: Colors.white,
+    titleTextStyle: TextStyle(
+      color: Colors.black,
+      fontWeight: FontWeight.bold,
+      fontSize: 25,
+    ),
+    contentTextStyle: TextStyle(
+      color: Colors.black,
+      fontSize: 18,
+    ),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+  );
 
   // AppBarのデザイン（詳細）
   static final LightTheme = ThemeData(

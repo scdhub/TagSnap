@@ -30,52 +30,51 @@ class _TopQrButton extends State<TopQrBtn> {
       onTapCancel: () => setState(() => isPressed = false), // キャンセル時
 
       child: AnimatedContainer(
-        duration: Duration(milliseconds: 150),
+        duration: Duration(milliseconds: 200),
         width: screenWidth * 0.7,
-        height: 65,
+        height: 70,
         decoration: BoxDecoration(
-          color:  Color(0xFF102466),
+          // color:  Color(0xFF219346),
           borderRadius: BorderRadius.circular(30),
-          border: Border.all(color:Colors.white, width: 1),
+          border: Border.all(color:Colors.white, width: 2),
           boxShadow: isPressed
               ? [ // 押したときは影をうすくする
             BoxShadow(
               color: Colors.grey.shade500,
-              offset: Offset(2, 2),
-              blurRadius: 5,
+              offset: Offset(1, 1),
+              blurRadius: 3,
             ),
             BoxShadow(
               color: Colors.white,
-              offset: Offset(-2, -2),
-              blurRadius: 5,
+              offset: Offset(-1, -1),
+              blurRadius: 3,
             ),
           ]
               : [],
         ),
 
-        child: Center(
-          child: Row(
+        child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
             Icon(
             Icons.qr_code,  // アイコンの追加
             color: Colors.white,  // アイコンの色
-            size: 30,  // アイコンのサイズ
+            size: 35,  // アイコンのサイズ
           ),
-          SizedBox(width:  15),  // アイコンとテキストの間隔を空ける
+              SizedBox(height:  5),  // アイコンとテキストの間隔を空ける
         Text(
-            'QRコード連携',
+            'QRコード\n連携',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18,
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
+          textAlign: TextAlign.center, // テキストを中央揃え
           ),
           ],
         ),
       ),
-      ),
-    );
+      );
   }
 }
 

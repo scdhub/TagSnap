@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tagsnap/top_page_design/top_inventory_btn.dart';
+import 'package:tagsnap/top_page_design/top_judgment_btn.dart';
 import 'package:tagsnap/top_page_design/top_led_btn.dart';
 import 'package:tagsnap/top_page_design/top_loading_btn.dart';
 import 'package:tagsnap/top_page_design/top_location_btn.dart';
-import 'package:tagsnap/top_page_design/top_new_btn.dart';
 import 'package:tagsnap/top_page_design/top_qr_btn.dart';
 import 'package:tagsnap/top_page_design/top_search_btn.dart';
 import 'package:tagsnap/top_page_design/top_setting_btn.dart';
@@ -22,53 +22,53 @@ class TopPage extends StatefulWidget {
 class _TopPageState extends State<TopPage> {
   @override
   Widget build(BuildContext context) {
-    // TODO: implement build
     return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'SmartLogiX',
+          style: TextStyle(color: Color(0xFF84848F),fontSize:40, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 110, // 高さを調整
+      ),
       body: Padding(
         padding: EdgeInsets.only(
-            top: MediaQuery
-                .of(context)
-                .padding
-                .top + 5
-        ), // ステータスバーの高さを考慮した上部の余白を追加
-        child:SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Text(
-                  '#TagSnap', //'iTemsPro ver.(3.0.1)',
-                  style: TextStyle(fontSize: 55,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white),
-                )
-            ),
-            //ボタンリスト
-            Center(child: TopSettingBtn()), //設定ボタン
-            SizedBox(height: 10),
-            Center(child: TopWritingBtn()), //書込ボタン
-            SizedBox(height: 10),
-            Center(child: TopLoadingBtn()), //読込ボタン
-            SizedBox(height: 10),
-            Center(child: TopInventoryBtn()), //棚卸ボタン
-            SizedBox(height: 10),
-            Center(child: TopSearchBtn()), //探索ボタン
-            SizedBox(height: 10),
-            Center(child: TopLedBtn()), //LED点灯ボタン
-            SizedBox(height: 10),
-            Center(child: TopLocationBtn()), //ロケーション管理ボタン
-            SizedBox(height: 10),
-            Center(child: TopQrBtn()), //QRコードボタン
-            SizedBox(height: 10),
-            Center(child: TopNewBtn()), //QRコードボタン
+          top: MediaQuery.of(context).padding.top + 5,
+        ),
 
-            SizedBox(height: 15),
-            // アプリバージョン表示（下部に移動）
+        child: Column(
+          children: [
+            SizedBox(height: 30,),
+            // 3×3のボタンレイアウト
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.count(
+                  crossAxisCount: 3, // 3列
+                  crossAxisSpacing: 10, // 横方向の間隔
+                  mainAxisSpacing: 28, // 縦方向の間隔
+                  physics: NeverScrollableScrollPhysics(), // スクロールを無効にする
+                  children: [
+                    TopSettingBtn(), // 設定ボタン
+                    TopWritingBtn(), // 書込ボタン
+                    TopLoadingBtn(), // 読込ボタン
+                    TopInventoryBtn(), // 棚卸ボタン
+                    TopSearchBtn(), // 探索ボタン
+                    TopLedBtn(), // LED点灯ボタン
+                    TopLocationBtn(), // ロケーション管理ボタン
+                    TopQrBtn(), // QRコードボタン
+                    TopJudgmentBtn(), // 真贋判定ボタン
+                  ],
+                ),
+              ),
+            ),
+
+            // バージョン表示
             Padding(
               padding: const EdgeInsets.only(bottom: 20),
               child: Text(
-                '(ver.3.0.1)', // バージョン情報
+                '(ver.3.0.1)',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.white60,
@@ -77,7 +77,6 @@ class _TopPageState extends State<TopPage> {
             ),
           ],
         ),
-      ),
       ),
     );
   }

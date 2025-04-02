@@ -31,6 +31,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_native_splash: ^2.0.3
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -88,3 +89,14 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+#
+flutter_native_splash:
+  color: "#000000"  # 背景色 (ユーザーの好みに合わせて)
+  android_12:
+    image: assets/skyblueLogo_small.png  # Android 12 以降で使用する画像
+    icon_background_color: "#000000"  # 背景色
+  android: true
+  ios: true
+
+
+
