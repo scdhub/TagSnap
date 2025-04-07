@@ -18,7 +18,8 @@ class _SearchPage extends State<SearchPage>
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
-  int _selectedIncrementMode = 0; // 初期値「なし」
+  int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
+
 
   // 各タブのデータ（実際は外部から受け取る）
   List<Map<String, dynamic>> epcList = [];
@@ -325,6 +326,54 @@ class _SearchPage extends State<SearchPage>
             },
           ),
         ),
+
+        Column(
+          children: [
+            // 探索中のEPCを表示
+            Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                selectedIndex != null ? "探索中のEPC：${epcList[selectedIndex!]['EPC']}" : "探索するEPCを選択してください",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+
+            // 電波強度レベルゲージ
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Stack(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300], // 背景（灰色）
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  Container(
+                    width: (signalStrength / 100) * MediaQuery.of(context).size.width * 0.8, // 強度に応じて幅を変える
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: signalStrength < 30
+                          ? Colors.red
+                          : signalStrength < 70
+                          ? Colors.yellow
+                          : Colors.green, // 色の変化
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              "$signalStrength%", // 強度の数値表示
+              style: TextStyle(fontSize: 16, color: Colors.white),
+            ),
+          ],
+        ),
+
+
         Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
           child: Row(

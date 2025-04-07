@@ -19,6 +19,7 @@ class _WritingPage extends State<WritingPage>
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
+  int _selectedIncrementMode = 0; // 初期値「なし」
 
   // 各タブのデータ（実際は外部から受け取る）
   List<Map<String, dynamic>> epcList = [];
@@ -30,7 +31,7 @@ class _WritingPage extends State<WritingPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length:2, vsync: this);
 
     // 仮データ（外部データが来るまでのダミーを）
     updateData([
@@ -246,7 +247,7 @@ class _WritingPage extends State<WritingPage>
                 child: Center(
                   child: Text(
                     "書込み対象選択リスト",
-                    style: TextStyle(fontSize: 15, color: Colors.black),
+                    style: TextStyle(fontSize: 15, color: Colors.white),
                   ),
                 ),
               ),
@@ -371,12 +372,102 @@ class _WritingPage extends State<WritingPage>
     );
   }
 
+  //AppBarと
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('書込み'), centerTitle: true),
       body: Column(
         children: [
+          // 書込み自動インクリメント設定
+          Padding(
+            padding: EdgeInsets.only(left: 10, bottom: 5),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 左側のテキスト
+                Text(
+                  "書込み自動インクリ",
+                  style: TextStyle(fontSize: 12, color: Colors.white),
+                ),
+                SizedBox(width: 10),
+
+                // 右側のタブ選択
+                ToggleButtons(
+                  constraints: BoxConstraints(minWidth: 55, minHeight: 28), // さらにコンパクト化
+                  borderRadius: BorderRadius.circular(6), // 角丸を少し小さく
+                  textStyle: TextStyle(fontSize: 12),
+                  isSelected: [
+                    _selectedIncrementMode == 0,
+                    _selectedIncrementMode == 1,
+                    _selectedIncrementMode == 2,
+                    _selectedIncrementMode == 3,
+                  ],
+                  onPressed: (index) {
+                    setState(() {
+                      _selectedIncrementMode = index;
+                    });
+                  },
+                  borderWidth: 1,
+                  borderColor:  Color(0xFF454343),
+                  selectedBorderColor: Colors.redAccent,
+                  fillColor: Colors.blue.withOpacity(0.2),
+                  selectedColor: Colors.redAccent,
+                  children: [
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("なし")),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("10進数")),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("16進数")),
+                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("改行")),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // ここに4つの入力欄を追加
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10), // 左右にちょっと余白
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(6, (index) {
+                return SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.15,
+                  height: 45, // 高さ50px
+                  child: TextField(
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
+                    ],
+
+                    maxLength: 4, // 最大8桁
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced, // 4文字以上入力不可
+                    decoration: InputDecoration(
+                      filled: true, // 背景を塗りつぶす
+                      fillColor: Color(0xFF84848F), // 薄いグレーの背景
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10), // 角を丸く
+                        borderSide: BorderSide(color: Colors.blue, width: 1),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Color(0xFF454343), width: 1), // 通常時の枠
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide(color: Colors.redAccent, width: 2), // 入力時の枠
+                      ),
+                      hintText: '____', // 4文字入ることが分かるように
+                      hintStyle: TextStyle(color: Colors.white60), // ヒントの色を薄く
+                      counterText: "", // 文字カウンターを消す
+                      contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8), // 余白調整
+                    ),
+                    textAlign: TextAlign.center, // テキスト中央配置
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,), // フォントサイズUP
+                  ),
+                );
+              }),
+            ),
+          ),
+
           TabBar(
             controller: _tabController,
             tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],

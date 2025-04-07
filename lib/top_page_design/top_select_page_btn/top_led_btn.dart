@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../led_page/led_page.dart';
+
 class TopLedBtn extends StatefulWidget {
   const TopLedBtn({super.key});
 
@@ -17,7 +19,14 @@ class _TopLEDButton extends State<TopLedBtn> {
         .size
         .width; //端末の幅に合わせる
 
-    return GestureDetector(
+    return InkWell(
+        onTap: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context)
+          => LedPage()),  // 遷移先のページ
+          );
+        },
+
+
       onTapDown: (_) => setState(() => isPressed = true),  // 押した時
       onTapUp: (_) => setState(() => isPressed = false),   // 離した時
       onTapCancel: () => setState(() => isPressed = false), // キャンセル時

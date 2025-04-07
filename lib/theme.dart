@@ -11,6 +11,8 @@ class AppTheme {
   //確認ダイアログのボタン
   static const Color confirmDialogButtonColor = Color(0xFFF06292);
   static const Color confirmDialogBorderColor = Color(0xFFEF85A9);
+  static const Color cancelDialogButtonColor = Colors.white;
+  static const Color cancelDialogBorderColor = Color(0xFFEF85A9);
 
   // ダイアログテーマ（確認ダイアログ）
   static final confirmDialogTheme = DialogTheme(

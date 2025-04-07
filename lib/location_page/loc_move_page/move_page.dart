@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 class MovePage extends StatefulWidget {
   const MovePage({super.key});
 
@@ -154,7 +156,7 @@ class _MovePage extends State<MovePage> {
                     height: 50, // ボタンの高さ
                     child: ElevatedButton(
                       onPressed: () {
-                        // ここで入庫登録の処理を入れる
+                        _showMoveDialog(context);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.pink, // ピンク色のボタン
@@ -189,6 +191,64 @@ class _MovePage extends State<MovePage> {
         text,
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
+    );
+  }
+
+  // ダイアログを表示するヘルパー関数
+  void _showMoveDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('確認',
+            textAlign: TextAlign.center, // タイトルを中央揃え,
+            style: AppTheme.confirmDialogTheme.titleTextStyle,),
+          content: Text('移動登録を行いますか？',
+            textAlign: TextAlign.center, // コンテンツを中央揃え
+            style: AppTheme.confirmDialogTheme.contentTextStyle,),
+
+          actions: <Widget>[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center, // ボタンを中央寄せ
+              children: [
+                TextButton(
+                  style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: AppTheme.cancelDialogButtonColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: AppTheme.cancelDialogBorderColor,width: 2))),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // ダイアログを閉じる
+                  },
+                  child: Text('Cancel',style: TextStyle(color: Color(0xFFF06292)),),
+                ),
+                SizedBox(width: 30), // ボタンの間に適度なスペースを追加
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: AppTheme.confirmDialogButtonColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                          color: AppTheme.confirmDialogBorderColor,
+                          width: 2
+                      ),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // ダイアログを閉じる
+
+                    // 入庫登録が完了したことを通知する
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('移動登録が完了しました')),
+                    );
+                  },
+                  child: Text('OK'),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

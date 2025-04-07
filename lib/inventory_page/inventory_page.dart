@@ -30,7 +30,7 @@ class _InventoryPage extends State<InventoryPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
 
     // 仮データ（外部データが来るまでのダミーを）
     updateData([
@@ -246,8 +246,8 @@ class _InventoryPage extends State<InventoryPage>
               Expanded(
                 child: Center(
                   child: Text(
-                    "書込み対象選択リスト",
-                    style: TextStyle(fontSize: 15, color: Colors.black),
+                    "在庫参照リスト",
+                    style: TextStyle(fontSize: 15, color: Colors.white),
                   ),
                 ),
               ),
@@ -345,7 +345,7 @@ class _InventoryPage extends State<InventoryPage>
                         isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
                   ),
                   child: Text(
-                    isReading ? '停止' : '書込み開始',
+                    isReading ? '停止' : '棚卸開始',
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
@@ -375,7 +375,7 @@ class _InventoryPage extends State<InventoryPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('書込み'), centerTitle: true),
+      appBar: AppBar(title: Text('棚卸'), centerTitle: true),
       body: Column(
         children: [
           TabBar(

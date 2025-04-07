@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
-import '../writing_page/writing_page.dart';
+import '../../writing_page/writing_page.dart';
 
 class TopWritingBtn extends StatefulWidget {
   const TopWritingBtn({super.key});//ボタンの状態変化ウィジェットを作成

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../search_page/search_page.dart';
+
 class TopSearchBtn extends StatefulWidget {
   const TopSearchBtn({super.key});
 
@@ -17,13 +19,13 @@ class TopSearchBtn extends StatefulWidget {
           .size
           .width; //端末の幅に合わせる
 
-      // return InkWell(
-      //     onTap: () {
-      //       Navigator.push(context,MaterialPageRoute(builder: (context)
-      //       => NextPage()),  // 遷移先のページ
-      //       );
-      //     },
-      return GestureDetector(
+      return InkWell(
+          onTap: () {
+            Navigator.push(context,MaterialPageRoute(builder: (context)
+            => SearchPage()),  // 遷移先のページ
+            );
+          },
+
         //ボタンの動作変化について
         onTapDown: (_) => setState(() => isPressed = true),  // 押した時
         onTapUp: (_) => setState(() => isPressed = false),   // 離した時

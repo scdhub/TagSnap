@@ -267,7 +267,7 @@ class _LoadingPage extends State<LoadingPage>
                     },
                     visualDensity: VisualDensity(horizontal: -4.0),
                   ),
-                  Text('二度読み禁止', style: TextStyle(fontSize: 10)),
+                  Text('二度読み禁止', style: TextStyle(fontSize: 10,color: Colors.white)),
                 ],
               ),
               Spacer(),
@@ -367,14 +367,14 @@ class _LoadingPage extends State<LoadingPage>
 
               // 保存ボタン
               SizedBox(
-                width: 55,
+                width: 60,
                 height: 40,
                 child: ElevatedButton(
                   onPressed: () {
                     saveDialog();
                   },
                   style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                  ElevatedButton.styleFrom(backgroundColor: Colors.white),
                   child: Text('保存',
                       style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
                 ),

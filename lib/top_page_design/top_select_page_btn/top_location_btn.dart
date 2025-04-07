@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../location_page/location_select_page/location_select_page.dart';
+
 class TopLocationBtn extends StatefulWidget {
   const TopLocationBtn({super.key});
 
@@ -18,13 +20,13 @@ class _TopLocationButton extends State<TopLocationBtn> {
         .width; //端末の幅に合わせる
 
 
-    // return InkWell(
-    //     onTap: () {
-    //       Navigator.push(context,MaterialPageRoute(builder: (context)
-    //       => NextPage()),  // 遷移先のページ
-    //       );
-    //     },
-    return GestureDetector(
+    return InkWell(
+        onTap: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context)
+          => LocationSelectPage(title: "操作メニュー")),  // 遷移先のページ
+          );
+        },
+
       //ボタンの動作変化について
       onTapDown: (_) => setState(() => isPressed = true),  // 押した時
       onTapUp: (_) => setState(() => isPressed = false),   // 離した時

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tagsnap/setting_page/setting_page.dart';
 
-import '../theme.dart';
+import '../../theme.dart';
 
 class TopSettingBtn extends StatefulWidget {
   const TopSettingBtn({super.key});
@@ -19,7 +20,13 @@ class _TopSettingButtonState extends State<TopSettingBtn> {
         .size
         .width;
 
-    return GestureDetector(
+    return InkWell(
+        onTap: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context)
+          => SettingPage()),  // 遷移先のページ
+          );
+        },
+
       onTapDown: (_) => setState(() => isPressed = true),  // 押した時
       onTapUp: (_) => setState(() => isPressed = false),   // 離した時
       onTapCancel: () => setState(() => isPressed = false), // キャンセル時
