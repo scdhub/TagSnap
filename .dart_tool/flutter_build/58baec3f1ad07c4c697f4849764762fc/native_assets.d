@@ -1,0 +1,1 @@
+ C:\\Users\\SCD20240805\\S\\tudioProjects\\TagSnap0314_github\\.dart_tool\\flutter_build\\58baec3f1ad07c4c697f4849764762fc\\native_assets.yaml: 
