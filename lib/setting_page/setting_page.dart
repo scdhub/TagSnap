@@ -29,7 +29,11 @@ class _SettingPageState extends State<SettingPage> {
           Center(
             child: Text(
               'RFD850022362523020778',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              // 並木の競合用適当な編集
+              // 競合が発生していると怒られたら、光嶋さんの作業環境の変更を
+              // 優先するかたちで解決させればOK
+              style: TextStyle(fontSize: 30,
+                  fontWeight: FontWeight.normal),
             ),
           ),
 
