@@ -24,22 +24,33 @@ class _TopPageState extends State<TopPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'SmartLogiX',
-          style: TextStyle(color: Color(0xFF84848F),fontSize:40, fontWeight: FontWeight.bold),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'TagSnap',
+              style: TextStyle(
+                color: Color(0xFF84848F),
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 8), // テキストとアイコンの間隔
+            Image.asset(
+              'assets/assets_tagsnap_image/TagSnap_01.png',
+              height: 45, // アイコンサイズはお好みで
+            ),
+          ],
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        toolbarHeight: 110, // 高さを調整
+        toolbarHeight: 80,
       ),
-      body: Padding(
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 5,
-        ),
 
-        child: Column(
+
+      body:  Column(
           children: [
-            SizedBox(height: 50,),
+            SizedBox(height: 100,),
             // 3×3のボタンレイアウト
             Expanded(
               child: Padding(
@@ -77,7 +88,6 @@ class _TopPageState extends State<TopPage> {
             ),
           ],
         ),
-      ),
     );
   }
 }

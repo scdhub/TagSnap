@@ -38,15 +38,25 @@ dependencies:
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
   flutter_test:
     sdk: flutter
+  flutter_lints: ^5.0.0
+
+  #下記のflutter_iconsを修正したら下記を実行
+  #flutter pub get
+  #flutter pub run flutter_launcher_icons:mainを
+flutter_icons:
+    android: true
+    ios: true
+    image_path: "assets/assets_icon_image/TagSnap_02.png" # 自作アイコンのパス
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -58,6 +68,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/assets_tagsnap_image/TagSnap_01.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -89,7 +102,10 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-#
+
+#下記のflutter_native_splashを修正したら下記を実行
+#flutter pub get
+#flutter pub run flutter_launcher_icons:main
 flutter_native_splash:
   color: "#000000"  # 背景色 (ユーザーの好みに合わせて)
   android_12:
@@ -97,6 +113,8 @@ flutter_native_splash:
     icon_background_color: "#000000"  # 背景色
   android: true
   ios: true
+
+
 
 
 
