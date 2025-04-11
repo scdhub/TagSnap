@@ -32,8 +32,8 @@ class _TopSettingButtonState extends State<TopSettingBtn> {
       onTapCancel: () => setState(() => isPressed = false), // キャンセル時
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        width: screenWidth * 0.7,
-        height: 70,
+        width: screenWidth * 0.26,
+        height: 100,
         decoration: BoxDecoration(
           // color:  Color(0xFFD42424),
           borderRadius: BorderRadius.circular(30),

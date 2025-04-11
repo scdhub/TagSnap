@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tagsnap/inventory_page/inventory_page.dart';
 
+import '../loc_search_page/loc_search_page.dart';
+
 
 class LocSearchBtn extends StatefulWidget {
   const LocSearchBtn({super.key});
@@ -22,7 +24,7 @@ class _LocSearchButton extends State<LocSearchBtn> {
     return InkWell(
       onTap: () {
         Navigator.push(context,MaterialPageRoute(builder: (context)
-        => InventoryPage()),  // 遷移先のページ
+        => LocSearchPage()),  // 遷移先のページ
         );
       },
 
@@ -34,9 +36,8 @@ class _LocSearchButton extends State<LocSearchBtn> {
         width: screenWidth * 0.4,
         height: 65,
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color:Color(0xFF0F80EA), width: 2),
+          border: Border.all(color:Colors.white,width: 2),
           boxShadow: isPressed
               ? [ // 押したときは影を弱く
             BoxShadow(
@@ -60,7 +61,7 @@ class _LocSearchButton extends State<LocSearchBtn> {
               '探索',
               style: TextStyle(
                 fontSize: 20,
-                color: Color(0xFF0F80EA),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),

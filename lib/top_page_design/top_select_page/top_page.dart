@@ -7,6 +7,7 @@ import 'package:tagsnap/top_page_design/top_select_page_btn/top_location_btn.dar
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_qr_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_search_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_setting_btn.dart';
+import 'package:tagsnap/top_page_design/top_select_page_btn/top_tagnav_bt.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_writing_btn.dart';
 
 
@@ -48,46 +49,35 @@ class _TopPageState extends State<TopPage> {
       ),
 
 
-      body:  Column(
-          children: [
-            SizedBox(height: 100,),
-            // 3×3のボタンレイアウト
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.count(
-                  crossAxisCount: 3, // 3列
-                  crossAxisSpacing: 10, // 横方向の間隔
-                  mainAxisSpacing: 28, // 縦方向の間隔
-                  physics: NeverScrollableScrollPhysics(), // スクロールを無効にする
-                  children: [
-                    TopSettingBtn(), // 設定ボタン
-                    TopWritingBtn(), // 書込ボタン
-                    TopLoadingBtn(), // 読込ボタン
-                    TopInventoryBtn(), // 棚卸ボタン
-                    TopSearchBtn(), // 探索ボタン
-                    TopLedBtn(), // LED点灯ボタン
-                    TopLocationBtn(), // ロケーション管理ボタン
-                    TopQrBtn(), // QRコードボタン
-                    TopJudgmentBtn(), // 真贋判定ボタン
-                  ],
-                ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+          child: Column(
+            children: [
+              const SizedBox(height: 35),
+              GridView.count(
+                crossAxisCount: 3, // 3列
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 28,
+                shrinkWrap: true, // サイズを中身に合わせる
+                physics: NeverScrollableScrollPhysics(), // GridView自体のスクロールはしない
+                children: const [
+                  TopSettingBtn(),
+                  TopWritingBtn(),
+                  TopLoadingBtn(),
+                  TopInventoryBtn(),
+                  TopSearchBtn(),
+                  TopLedBtn(),
+                  TopLocationBtn(),
+                  TopQrBtn(),
+                  TopJudgmentBtn(),
+                  TopTagnavBt(),
+                ],
               ),
-            ),
-
-            // バージョン表示
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Text(
-                '(ver.3.0.1)',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white60,
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
     );
   }
 }

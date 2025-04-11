@@ -23,8 +23,8 @@ class _TopJudgmentButton extends State<TopJudgmentBtn> {
       onTapCancel: () => setState(() => isPressed = false), // キャンセル時
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        width: screenWidth * 0.7,
-        height: 70,
+        width: screenWidth * 0.26,
+        height: 100,
         decoration: BoxDecoration(
           // color: Color(0xFFFD7B17),
           borderRadius: BorderRadius.circular(30),

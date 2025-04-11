@@ -17,11 +17,16 @@ class _InboundPage extends State<InboundPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '出庫登録',
-          style: TextStyle(color: Colors.black),
+          '出庫登録',style: TextStyle(
+          color: Color(0xFF84848F),
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
+        ),
         ),
         centerTitle: true,
-        backgroundColor: Colors.white, // ヘッダーの背景色（ダークグレー）
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0), // 余白を追加

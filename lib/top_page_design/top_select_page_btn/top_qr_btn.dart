@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../qrcode_page/qrcode_page.dart';
+
 class TopQrBtn extends StatefulWidget {
   const TopQrBtn({super.key});
 
@@ -17,13 +19,13 @@ class _TopQrButton extends State<TopQrBtn> {
         .size
         .width; //端末の幅に合わせる
 
-    // return InkWell(
-    //     onTap: () {
-    //       Navigator.push(context,MaterialPageRoute(builder: (context)
-    //       => NextPage()),  // 遷移先のページ
-    //       );
-    //     },
-    return GestureDetector(
+    return InkWell(
+        onTap: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context)
+          => QrcodePage()),  // 遷移先のページ
+          );
+        },
+
       //ボタンの動作変化について
       onTapDown: (_) => setState(() => isPressed = true),  // 押した時
       onTapUp: (_) => setState(() => isPressed = false),   // 離した時
@@ -31,8 +33,8 @@ class _TopQrButton extends State<TopQrBtn> {
 
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        width: screenWidth * 0.7,
-        height: 70,
+        width: screenWidth * 0.26,
+        height: 100,
         decoration: BoxDecoration(
           // color:  Color(0xFF219346),
           borderRadius: BorderRadius.circular(30),

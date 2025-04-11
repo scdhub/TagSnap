@@ -389,7 +389,17 @@ class _LoadingPage extends State<LoadingPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('読込み'), centerTitle: true),
+      appBar: AppBar(title: Text('読込み', style: TextStyle(
+        color: Color(0xFF84848F),
+        fontSize: 25,
+        fontWeight: FontWeight.bold,
+      ),
+      ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
+      ),
       body: Column(
         children: [
           TabBar(

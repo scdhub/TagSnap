@@ -36,9 +36,8 @@ class _LocMoveButton extends State<LocMoveBtn> {
         width: screenWidth * 0.4,
         height: 60,
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color:Color(0xFF9D0DFD), width: 2),
+          border: Border.all(color:Colors.white,width: 2),
           boxShadow: isPressed
               ? [ // 押したときは影を弱く
             BoxShadow(
@@ -62,7 +61,7 @@ class _LocMoveButton extends State<LocMoveBtn> {
               '移動',
               style: TextStyle(
                 fontSize: 20,
-                color: Color(0xFF9D0DFD),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),

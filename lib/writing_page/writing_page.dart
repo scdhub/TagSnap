@@ -376,7 +376,18 @@ class _WritingPage extends State<WritingPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('書込み'), centerTitle: true),
+      appBar: AppBar(title: Text('書込み', style: TextStyle(
+        color: Color(0xFF84848F),
+        fontSize: 25,
+        fontWeight: FontWeight.bold,
+      ),
+      ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
+      ),
+
       body: Column(
         children: [
           // 書込み自動インクリメント設定

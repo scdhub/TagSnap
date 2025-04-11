@@ -33,8 +33,8 @@ class TopSearchBtn extends StatefulWidget {
 
         child: AnimatedContainer(
           duration: Duration(milliseconds: 200),
-          width: screenWidth * 0.7,
-          height: 70,
+          width: screenWidth * 0.26,
+          height: 100,
           decoration: BoxDecoration(
             // color:  Color(0xFF3AB98E),
             borderRadius: BorderRadius.circular(30),

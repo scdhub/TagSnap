@@ -343,7 +343,7 @@ class _LedPage extends State<LedPage> with SingleTickerProviderStateMixin {
                     isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
                   ),
                   child: Text(
-                    isReading ? '停止' : '書込み開始',
+                    isReading ? '停止' : 'LED点灯開始',
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
@@ -374,7 +374,17 @@ class _LedPage extends State<LedPage> with SingleTickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('書込み'), centerTitle: true),
+      appBar: AppBar(title: Text('LED点灯', style: TextStyle(
+        color: Color(0xFF84848F),
+        fontSize: 25,
+        fontWeight: FontWeight.bold,
+      ),
+      ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
+      ),
       body: Column(
         children: [
           // 書込み自動インクリメント設定

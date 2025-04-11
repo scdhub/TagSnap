@@ -23,46 +23,41 @@ class _LocationSelectPageState extends State<LocationSelectPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          '操作メニュー',
-          style: TextStyle(
+          '操作メニュー', style: TextStyle(
             color: Color(0xFF84848F),
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        backgroundColor: Colors.white,
+        fontSize: 25,
+        fontWeight: FontWeight.bold,
       ),
-      body: Center(
+    ),
+    centerTitle: true,
+    backgroundColor: Colors.white,
+    elevation: 0,
+    toolbarHeight: 80,
+    ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 20.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // 縦方向に中央揃え
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildButtonRow(LocInboundBtn(), LocDepartureBtn()), // 入庫 出荷
-            const SizedBox(height: 20), // 余白を追加
-            _buildButtonRow(LocInventoryBtn(), LocSearchBtn()), // 棚卸 探索
-            const SizedBox(height: 20), // 余白を追加
-            _buildButtonRow(LocLedBtn(), LocMoveBtn()), // LED 移動
-            const SizedBox(height: 20), // 余白を追加
-            _buildButtonRow(LocStockListBtn(), LocExportBtn()), // 在庫リスト エクスポート), // 在庫リスト エクスポート
-            const SizedBox(height: 20), // 余白を追加
-            const Center(child: LocImportBtn()), // 6行目の中央にインポートボタン
+            _buildButton(const LocInboundBtn()),    // 入庫
+            _buildButton(const LocDepartureBtn()),  // 出荷
+            _buildButton(const LocInventoryBtn()),  // 棚卸
+            _buildButton(const LocSearchBtn()),     // 探索
+            _buildButton(const LocLedBtn()),        // LED
+            _buildButton(const LocMoveBtn()),       // 移動
+            _buildButton(const LocStockListBtn()),  // 在庫リスト
+            _buildButton(const LocExportBtn()),     // エクスポート
+            _buildButton(const LocImportBtn()),     // インポート
           ],
         ),
       ),
     );
   }
 
-  //2つのボタンを並べる行を作成
-  Widget _buildButtonRow(Widget leftButton, Widget rightButton) {
+  Widget _buildButton(Widget button) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10), // 上下の余白
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center, // 水平方向に中央揃え
-        children: [
-          leftButton,
-          const SizedBox(width: 20), // ボタン間の間隔
-          rightButton,
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: button,
     );
   }
 }

@@ -383,6 +383,7 @@ class _LocSearchPage extends State<LocSearchPage>
             children: [
               //タグ数（左）
               Text('タグ数：$tagCount', style: TextStyle(fontSize: 16,color: Colors.white)),
+
               // 読み込みボタン
               SizedBox(
                 width: 170,
@@ -425,7 +426,17 @@ class _LocSearchPage extends State<LocSearchPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('探索'), centerTitle: true),
+      appBar: AppBar(title: Text('探索', style: TextStyle(
+        color: Color(0xFF84848F),
+        fontSize: 25,
+        fontWeight: FontWeight.bold,
+      ),
+      ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
+      ),
       body: Column(
         children: [
           // 書込み自動インクリメント設定
@@ -436,7 +447,7 @@ class _LocSearchPage extends State<LocSearchPage>
               children: [
                 // 左側のテキスト
                 Text(
-                  "点灯タグEPC",
+                  "探索ID",
                   style: TextStyle(fontSize: 18, color: Colors.white),
                 ),
               ],

@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 
-class FrequencyPage extends StatefulWidget {
-  const FrequencyPage({super.key});
+class SavePage extends StatefulWidget {
+  const SavePage({super.key});
 
   @override
-  State<FrequencyPage> createState() => _FrequencyPage();
+  State<SavePage> createState() => _SavePage();
 }
 
-class _FrequencyPage extends State<FrequencyPage> {
+class _SavePage extends State<SavePage> {
   bool isPressed = false;
 
   @override
@@ -16,7 +16,7 @@ class _FrequencyPage extends State<FrequencyPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          '周波数チャンネル',
+          '設定保存',
           style: TextStyle(color: Colors.black),
         ),
         centerTitle: true,
