@@ -34,8 +34,8 @@ class _TopLocationButton extends State<TopLocationBtn> {
 
       child: AnimatedContainer(
         duration: Duration(milliseconds: 200),
-        width: screenWidth * 0.7,
-        height: 70,
+        width: screenWidth * 0.26,
+        height: 100,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(30),
           border: Border.all(color:Colors.white, width: 2),

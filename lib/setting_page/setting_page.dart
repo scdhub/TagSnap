@@ -1,5 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/beep_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/frequency_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/no_double_reading_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/reading_mode_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/rf_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/save_page.dart';
+
+import '../theme.dart';
 
 class SettingPage extends StatefulWidget {
   const SettingPage({super.key});
@@ -13,14 +21,23 @@ class _SettingPageState extends State<SettingPage> {
   bool isEnglishMode = false;
   bool isPolling = false;
   bool isInventoryDisplay = false;
-  final TextEditingController epcController = TextEditingController(text: 'FFFF');
+  final TextEditingController epcController = TextEditingController(
+      text: 'FFFF');
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('設定'),
+        title: Text('設定', style: TextStyle(
+          color: Color(0xFF84848F),
+          fontSize: 25,
+          fontWeight: FontWeight.bold,
+        ),
+        ),
         centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
       ),
       body: ListView(
         padding: EdgeInsets.all(16),
@@ -29,11 +46,10 @@ class _SettingPageState extends State<SettingPage> {
           Center(
             child: Text(
               'RFD850022362523020778',
-              // 並木の競合用適当な編集
-              // 競合が発生していると怒られたら、光嶋さんの作業環境の変更を
-              // 優先するかたちで解決させればOK
-              style: TextStyle(fontSize: 30,
-                  fontWeight: FontWeight.normal),
+              style: TextStyle(
+                color: AppTheme.textColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
 
@@ -85,12 +101,21 @@ class _SettingPageState extends State<SettingPage> {
           // EPC入力欄
           TextField(
             controller: epcController,
-            maxLength: 4,
+            maxLength: 2,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
               labelText: '床タグEPCヘッダー値（4桁）',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(), //通常時の枠線
+              enabledBorder: OutlineInputBorder( // 非フォーカス時の枠線
+                borderSide: BorderSide(color: Colors.grey),
+              ),
+              focusedBorder: OutlineInputBorder( // フォーカス時の枠線
+                borderSide: BorderSide(color: Theme
+                    .of(context)
+                    .colorScheme
+                    .primary, width: 2.0),
+              ),
             ),
           ),
 
@@ -111,19 +136,47 @@ class _SettingPageState extends State<SettingPage> {
   // ▼ 共通UI部品（ナビゲーションタイル）
   Widget _buildNavTile(BuildContext context, String title) {
     return ListTile(
-      title: Text(title),
+      title: Text(title, style: TextStyle(color: AppTheme.textColor)),
       trailing: Icon(Icons.arrow_forward_ios, size: 16),
       onTap: () {
-        // TODO: 遷移先に移動させる
-        print('$title tapped');
+        Widget? destination;
+
+        switch (title) {
+          case 'RF出力':
+            destination = RfPage();
+            break;
+          case 'ビープ音':
+            destination = BeepPage();
+            break;
+          case '読取モード':
+            destination = ReadingModePage();
+            break;
+          case '周波数チャネル':
+            destination = FrequencyPage();
+            break;
+          case '二度読禁止':
+            destination = NoDoubleReadingPage();
+            break;
+          case '設定保存':
+            destination = SavePage();
+            break;
+        }
+
+        if (destination != null) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => destination!),
+          );
+        }
       },
     );
   }
 
   // ▼ スイッチUI部品
-  Widget _buildSwitchTile(String title, bool value, ValueChanged<bool> onChanged) {
+  Widget _buildSwitchTile(String title, bool value,
+      ValueChanged<bool> onChanged) {
     return SwitchListTile(
-      title: Text(title),
+      title: Text(title, style: TextStyle(color: AppTheme.textColor),),
       value: value,
       onChanged: onChanged,
     );

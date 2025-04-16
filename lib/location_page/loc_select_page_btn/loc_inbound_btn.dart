@@ -34,9 +34,8 @@ class _LocInboundButton extends State<LocInboundBtn> {
         width: screenWidth * 0.4,
         height: 65,
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color:Color(0xFFE65757), width: 2),
+          border: Border.all(color:Colors.white,width: 2),
           boxShadow: isPressed
               ? [ // 押したときは影を弱く
             BoxShadow(
@@ -60,7 +59,7 @@ class _LocInboundButton extends State<LocInboundBtn> {
               '出庫',
               style: TextStyle(
                 fontSize: 20,
-                color: Color(0xFFE65757),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),

@@ -90,9 +90,8 @@ class _LocExportButton extends State<LocExportBtn> {
         width: screenWidth * 0.4,
         height: 65,
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Color(0xFF503322), width: 2),
+          border: Border.all(color:Colors.white,width: 2),
           boxShadow: isPressed
               ? [
             BoxShadow(
@@ -115,7 +114,7 @@ class _LocExportButton extends State<LocExportBtn> {
               'エクスポート',
               style: TextStyle(
                 fontSize: 20,
-                color: Color(0xFF503322),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),

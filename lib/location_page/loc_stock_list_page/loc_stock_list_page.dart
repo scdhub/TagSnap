@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../theme.dart';
+
 class LocStockListPage extends StatefulWidget {
   const LocStockListPage({super.key});
 
@@ -10,9 +12,7 @@ class LocStockListPage extends StatefulWidget {
 class _LocStockListPage extends State<LocStockListPage> {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: InventoryScreen(),
-    );
+    return InventoryScreen();
   }
 }
 
@@ -99,15 +99,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '在庫リスト',
-          style: TextStyle(color: Colors.black),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
+      appBar: AppBar(title: Text('在庫リスト',style: TextStyle(
+          color: Color(0xFF84848F),
+        fontSize: 25,
+        fontWeight: FontWeight.bold,
       ),
-      body: Column(
+    ),
+    centerTitle: true,
+    backgroundColor: Colors.white,
+    elevation: 0,
+    toolbarHeight: 80,
+    ),
+    body: Column(
         children: [
           Column(
             children: [
@@ -138,23 +141,23 @@ class _InventoryScreenState extends State<InventoryScreen> {
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 columns: [
-                  DataColumn(label: Text('コード')),
-                  DataColumn(label: Text('物品EPC')),
-                  DataColumn(label: Text('品名')),
-                  DataColumn(label: Text('拡張欄1')),
-                  DataColumn(label: Text('拡張欄2')),
-                  DataColumn(label: Text('ロケーション')),
-                  DataColumn(label: Text('ロケ確定日時')),
+                  DataColumn(label: Text('コード',style: TextStyle(color:AppTheme.textColor))),
+                  DataColumn(label: Text('物品EPC',style: TextStyle(color:AppTheme.textColor))),
+                  DataColumn(label: Text('品名',style: TextStyle(color:AppTheme.textColor))),
+                  DataColumn(label: Text('拡張欄1',style: TextStyle(color:AppTheme.textColor))),
+                  DataColumn(label: Text('拡張欄2',style: TextStyle(color:AppTheme.textColor))),
+                  DataColumn(label: Text('ロケーション',style: TextStyle(color:AppTheme.textColor))),
+                  DataColumn(label: Text('ロケ確定日時',style: TextStyle(color:AppTheme.textColor))),
                 ],
                 rows: filteredInventory.map((item) {
                   return DataRow(cells: [
-                    DataCell(Text(item['コード']!)),
-                    DataCell(Text(item['物品EPC']!)),
-                    DataCell(Text(item['品名']!)),
-                    DataCell(Text(item['拡張欄1']!)),
-                    DataCell(Text(item['拡張欄2']!)),
-                    DataCell(Text(item['ロケーション']!)),
-                    DataCell(Text(item['ロケ確定日時']!)),
+                    DataCell(Text(item['コード']!,style: TextStyle(color:AppTheme.textColor))),
+                    DataCell(Text(item['物品EPC']!,style: TextStyle(color:AppTheme.textColor))),
+                    DataCell(Text(item['品名']!,style: TextStyle(color:AppTheme.textColor))),
+                    DataCell(Text(item['拡張欄1']!,style: TextStyle(color:AppTheme.textColor))),
+                    DataCell(Text(item['拡張欄2']!,style: TextStyle(color:AppTheme.textColor))),
+                    DataCell(Text(item['ロケーション']!,style: TextStyle(color:AppTheme.textColor))),
+                    DataCell(Text(item['ロケ確定日時']!,style: TextStyle(color:AppTheme.textColor))),
                   ]);
                 }).toList(),
               ),
@@ -192,13 +195,21 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 controller: controller,
                 onChanged: (value) => filterList(),
                 enabled: isActive,
+                style: TextStyle(color: Colors.white), // 入力文字の色
                 decoration: InputDecoration(
                   contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   border: OutlineInputBorder(),
                   hintText: '絞り込むテキスト',
+                  hintStyle: TextStyle(color: Colors.white60),
+                  enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white60),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: Colors.white),
                 ),
               ),
             ),
+          ),
           ),
         ],
       ),

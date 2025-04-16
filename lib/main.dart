@@ -4,10 +4,6 @@ import 'package:tagsnap/top_page_design/top_select_page/top_page.dart';
 import 'theme.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  FlutterNativeSplash.preserve(widgetsBinding: WidgetsFlutterBinding.ensureInitialized());
-  FlutterNativeSplash.remove();
-
   runApp(const MyApp());
 }
 

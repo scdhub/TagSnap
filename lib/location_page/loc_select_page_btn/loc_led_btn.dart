@@ -36,9 +36,8 @@ class _LocLedButton extends State<LocLedBtn> {
         width: screenWidth * 0.4,
         height: 65,
         decoration: BoxDecoration(
-          color: Colors.white,
           borderRadius: BorderRadius.circular(25),
-          border: Border.all(color: Color(0xFFFD0D8D), width: 2),
+          border: Border.all(color:Colors.white,width: 2),
           boxShadow: isPressed
               ? [ // 押したときは影を弱く
             BoxShadow(
@@ -62,7 +61,7 @@ class _LocLedButton extends State<LocLedBtn> {
               'LED',
               style: TextStyle(
                 fontSize: 20,
-                color: Color(0xFFFD0D8D),
+                color: Colors.white,
                 fontWeight: FontWeight.bold,
               ),
             ),
