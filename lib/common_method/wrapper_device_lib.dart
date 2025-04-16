@@ -13,7 +13,7 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('initRFID') ?? false;
   }
 
-  // 読み取り開始
+  // 連続読み取り開始
   static Future<bool> startRFIDScan() async {
     return await _devChannel.invokeMethod<bool>('startRFIDScan') ?? false;
   }

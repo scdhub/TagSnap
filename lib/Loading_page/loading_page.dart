@@ -44,10 +44,10 @@ class _LoadingPage extends State<LoadingPage>
     initializeRFID();
 
     // 仮データ（外部データが来るまでのダミーを）
-    updateData([
-      {"No": "1", "EPC": "EPC 1001", "種別": "Type A", "回数": "1"},
-      {"No": "2", "EPC": "EPC 1002", "種別": "Type B", "回数": "2"},
-    ], "EPC");
+    // updateData([
+    //   {"No": "1", "EPC": "EPC 1001", "種別": "Type A", "回数": "1"},
+    //   {"No": "2", "EPC": "EPC 1002", "種別": "Type B", "回数": "2"},
+    // ], "EPC");
 
     updateData([
       {"No": "1", "種別": "Type X"},
@@ -69,23 +69,47 @@ class _LoadingPage extends State<LoadingPage>
 
   // RFID周りの初期化
   Future<void> initializeRFID() async {
+
     // RFID呼び出し用の初期化
     var isInitRFID = await WrapperDeviceLib.initRFID();
+
     if (isInitRFID) {
       // ストリームの購読は読み取り開始より先にセット
       subscription = WrapperDeviceLib.epcStream.listen((epc) {
-        // 重複していないデータ受信時のみ追加
+
+        // データ受信時、epcListを直接編集しながらデータ蓄積を行う
+        // 重複していないデータ受信時は新規追加
         if(!tagList.contains(epc)) {
+
           setState(() {
+            // ユニークのタグ文字列管理用変数を更新
             tagList.add(epc);
-            // これでいいのか？
-            List<Map<String, dynamic>> mappedList = tagList.map((tag) =>
-            {
-              'result': tag
-            }).toList();
-            updateData(mappedList, "EPC");
+            // epcListも行追加
+            // 種別をどうするか
+            epcList.add({"No": (epcList.length + 1).toString(),
+              "Data": epc,
+              "種別": "",
+              "回数": "0",
+            });
           });
         }
+        // 重複している場合は回数情報のみ更新
+        else {
+          setState(() {
+            // epcList内の該当行を取得し、回数情報をインクリメント
+            for (var item in epcList) {
+              if (item["Data"] == epc) {
+                int cnt = int.tryParse(item["回数"]) ?? 0;
+                item["回数"] = (cnt + 1).toString();
+                break;
+              }
+            }
+          });
+        }
+
+        // カラム初期化目的で呼び出し
+        updateData(epcList, "None");
+
       }, onError: (error) {
         print("epcStreamでエラー発生: $error");
       });
@@ -303,6 +327,8 @@ class _LoadingPage extends State<LoadingPage>
                 onPressed: () {
                   setState(() {
                     dataList.clear();
+                    // RFIDの受信管理用の変数も合わせてクリアする
+                    tagList.clear();
                   });
                 },
                 child: Text('クリア', style: TextStyle(color: Colors.white)),

@@ -33,19 +33,24 @@ class MainActivity : FlutterActivity() {
         val methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel)
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
+
+                // 初期化処理
                 "initRFID" -> {
                     result.success(initRFID())
                 }
 
+                // 読み取り開始（連続読み取り）
                 "startRFIDScan" -> {
                     result.success(startRFIDScan())
                 }
 
+                // 読み取り停止
                 "stopRFIDScan" -> {
                     stopRFIDScanInternal()
                     result.success(true)
                 }
 
+                // 終了処理
                 "TermRFID" -> {
                     termRFID()
                     result.success(true)
@@ -55,6 +60,7 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        // 読み取り情報をflutter側で受け取るためのチャンネル
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, stream)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
@@ -74,7 +80,7 @@ class MainActivity : FlutterActivity() {
         return isInit
     }
 
-    // RFIDの読み取り開始処理
+    // RFIDの連続読み取り開始処理
     private fun startRFIDScan(): Boolean {
         //　初期化終わっていなかったら終了
         if (!isInit) return false
@@ -86,6 +92,7 @@ class MainActivity : FlutterActivity() {
                 // flutterの制約によりメインスレッドで必ず返さないといけない
                 runOnUiThread {
                     eventSink?.success(epc)
+                    // デバッグ用ログ
                     Log.d("Kotlin:MainActivity", "epc情報送信：$epc")
                 }
             }
