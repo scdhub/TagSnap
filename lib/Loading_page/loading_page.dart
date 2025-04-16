@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:async';
 
 import '../led_page/led_page.dart';
 import '../search_page/search_page.dart';
 import '../theme.dart';
+import 'package:tagsnap/common_method/wrapper_device_lib.dart';
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
@@ -28,10 +30,18 @@ class _LoadingPage extends State<LoadingPage>
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
 
+  // RFIDの結果情報を格納するためのリストとStreamからの受信用変数
+  final Set<String> tagList = {};
+  late StreamSubscription<String>? subscription;
+
   @override
   void initState() {
+
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // RFID関連の初期化
+    initializeRFID();
 
     // 仮データ（外部データが来るまでのダミーを）
     updateData([
@@ -52,7 +62,49 @@ class _LoadingPage extends State<LoadingPage>
   @override
   void dispose() {
     _tabController.dispose();
+    WrapperDeviceLib.termRFID();
+    subscription?.cancel();
     super.dispose();
+  }
+
+  // RFID周りの初期化
+  Future<void> initializeRFID() async {
+    // RFID呼び出し用の初期化
+    var isInitRFID = await WrapperDeviceLib.initRFID();
+    if (isInitRFID) {
+      // ストリームの購読は読み取り開始より先にセット
+      subscription = WrapperDeviceLib.epcStream.listen((epc) {
+        // 重複していないデータ受信時のみ追加
+        if(!tagList.contains(epc)) {
+          setState(() {
+            tagList.add(epc);
+            // これでいいのか？
+            List<Map<String, dynamic>> mappedList = tagList.map((tag) =>
+            {
+              'result': tag
+            }).toList();
+            updateData(mappedList, "EPC");
+          });
+        }
+      }, onError: (error) {
+        print("epcStreamでエラー発生: $error");
+      });
+    }
+  }
+
+  // 読み取り開始/停止処理
+  Future<void> readRFIDStartStop() async {
+    bool ret;
+    // 読み取りフラグの状態により呼び出し切り替え
+    if (!isReading) {
+      ret = await WrapperDeviceLib.startRFIDScan();
+    } else {
+      ret = await WrapperDeviceLib.stopRFIDScan();
+    }
+    // 成功時のみボタン切り替え処理を実行
+    if (ret) {
+      toggleReading();
+    }
   }
 
   //開始、停止ボタン
@@ -353,7 +405,7 @@ class _LoadingPage extends State<LoadingPage>
                 width: 170,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: toggleReading,
+                  onPressed: readRFIDStartStop,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                         isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),

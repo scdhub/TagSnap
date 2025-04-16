@@ -37,8 +37,18 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+
+    repositories {
+        flatDir {
+            dirs 'libs'
+        }
+    }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation(name: 'DeviceAPI_ver20250209_release', ext: 'aar')
 }
