@@ -1,6 +1,5 @@
 
 import 'package:flutter/material.dart';
-import 'package:tagsnap/inventory_page/inventory_page.dart';
 import 'package:tagsnap/location_page/loc_move_page/move_page.dart';
 
 

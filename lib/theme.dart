@@ -14,6 +14,13 @@ class AppTheme {
   static const Color cancelDialogButtonColor = Colors.white;
   static const Color cancelDialogBorderColor = Color(0xFFEF85A9);
 
+  //フィルターボタンON/OFFの色
+  static const Color filterOnColor = Color(0xFFBBDEFB); // 明るい青（ON用）
+  static const Color filterOffColor = Color(0xFFE0E0E0); // グレー（OFF用）
+  static const Color filterOnTextColor = Colors.black; // ON時は濃い文字
+  static const Color filterOffTextColor = Colors.grey; // OFF時は薄い文字
+
+
   // ダイアログテーマ（確認ダイアログ）
   static final confirmDialogTheme = DialogTheme(
     backgroundColor: Colors.white,

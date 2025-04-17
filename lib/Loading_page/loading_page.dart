@@ -27,6 +27,10 @@ class _LoadingPage extends State<LoadingPage>
   List<Map<String, dynamic>> bitList = [];
   List<Map<String, dynamic>> himodukeList = [];
 
+  // ヘッダーとリストのスクロール位置同期用の ScrollController
+  final ScrollController _headerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
+
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
 
@@ -57,11 +61,27 @@ class _LoadingPage extends State<LoadingPage>
     updateData([
       {"No": "1", "EPC": "EPC 2001", "種別": "Type C", "回数": "1"},
     ], "Himoduke");
+    // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
+    _headerScrollController.addListener(() {
+      if (_listScrollController.hasClients &&
+          _listScrollController.offset != _headerScrollController.offset) {
+        _listScrollController.jumpTo(_headerScrollController.offset);
+      }
+    });
+    _listScrollController.addListener(() {
+      if (_headerScrollController.hasClients &&
+          _headerScrollController.offset != _listScrollController.offset) {
+        _headerScrollController.jumpTo(_listScrollController.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _headerScrollController.dispose();
+    _listScrollController.dispose();
+  
     WrapperDeviceLib.termRFID();
     subscription?.cancel();
     super.dispose();
@@ -138,6 +158,14 @@ class _LoadingPage extends State<LoadingPage>
     });
   }
 
+  //タブを独立
+  Map<String, Map<String, bool>> selectedColumnsMap = {
+    "EPC": {},
+    "Bit": {},
+    "Himoduke": {},
+  };
+
+
   // 外部データを受け取る関数
   void updateData(List<Map<String, dynamic>> newData, String type) {
     setState(() {
@@ -188,12 +216,13 @@ class _LoadingPage extends State<LoadingPage>
     }
   }
 
-  void selectionDialog() {
+  void selectionDialog(String tabType) {
     showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            var selectedColumns = selectedColumnsMap[tabType]!;
             return AlertDialog(
               backgroundColor: Colors.white,
               title: Column(
@@ -300,20 +329,68 @@ class _LoadingPage extends State<LoadingPage>
     );
   }
 
+  Widget buildRow(
+      Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
+      Map<String, bool> selectedColumns, {
+        bool isHeader = false, // trueならヘッダー行
+        bool isSelected = false, // 選択状態（背景色を変える用）
+      }) {
+    final bgColor = isHeader
+        ? Colors.grey.shade300
+        : isSelected
+        ? Colors.lightBlueAccent.withOpacity(0.3)
+        : Colors.white;
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(
+          bottom: BorderSide(
+              color: isHeader ? Colors.grey : Colors.grey.shade300),
+        ),
+      ),
+      child: Row(
+        children: selectedColumns.entries
+            .where((entry) => entry.value)
+            .map((entry) => Container(
+          width: 100,
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            isHeader
+                ? entry.key
+                : (rowData?[entry.key]?.toString() ?? ""),
+            style:
+            isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
+            textAlign: TextAlign.center,
+          ),
+        ))
+            .toList(),
+      ),
+    );
+  }
+
   // buildTabContentメソッド
   Widget buildTabContent(String tabType) {
+    bool isEPCTab = (tabType == "EPC");
     List<Map<String, dynamic>> dataList;
-    bool isEPCTab = tabType == "EPC"; // タブがEPCかどうかを判定
-
     if (tabType == "EPC") {
       dataList = epcList;
     } else if (tabType == "Bit") {
       dataList = bitList;
-    } else {
+    } else { // Himoduke
       dataList = himodukeList;
     }
 
+    var selectedColumns = selectedColumnsMap[tabType] ?? {};
     int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final int columnCount =
+        selectedColumns.entries.where((entry) => entry.value).length;
+    final double calculatedWidth = columnCount * 100.0;
+    final double finalWidth =
+    calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
+
 
     return Column(
       children: [
@@ -326,13 +403,15 @@ class _LoadingPage extends State<LoadingPage>
                     backgroundColor: Color(0xFF5FD970)),
                 onPressed: () {
                   setState(() {
-                    dataList.clear();
+                    dataList.clear();// クリアボタンが押されたらデータを消去
                     // RFIDの受信管理用の変数も合わせてクリアする
                     tagList.clear();
                   });
                 },
                 child: Text('クリア', style: TextStyle(color: Colors.white)),
               ),
+
+              // 二度読み禁止のチェックボックス
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -352,72 +431,61 @@ class _LoadingPage extends State<LoadingPage>
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orangeAccent),
-                onPressed: isEPCTab ? null : selectionDialog,
+                onPressed: isEPCTab ? null : () => selectionDialog(tabType),
                 child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
         ),
 
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: Colors.white70),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: selectedColumns.entries
-                .where((entry) => entry.value)
-                .map((entry) => Expanded(
-                    child: Text(entry.key, textAlign: TextAlign.center)))
-                .toList(),
+        // ヘッダー部分
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _headerScrollController,
+          child: Container(
+            width: finalWidth,
+            child: buildRow(null, selectedColumns, isHeader: true),
           ),
         ),
-
-        //タップ時や長押しした際のポップアップ処理
+        // リスト部分
         Expanded(
-          child: ListView.builder(
-            itemCount: tagCount,
-            itemBuilder: (context, index) {
-              bool isSelected = index == selectedIndex; // 選択状態を判定する
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _listScrollController,
+            child: Container(
+              width: finalWidth,
+              height: 300.0,
+              child: ListView.builder(
+                itemCount: tagCount,
+                itemBuilder: (context, index) {
+                  bool isSelected = (index == selectedIndex);
 
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = index; // タップ時に選択行を変更する
-                  });
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedIndex =
+                        (selectedIndex == index) ? null : index;
+                      });
+                    },
+                    onLongPressStart: (details) {
+                      setState(() {
+                        selectedIndex = index;
+                        showPopupMenu(context, details.globalPosition, index);
+                      });
+                    },
+                    child: buildRow(
+                      dataList[index],
+                      selectedColumns,
+                      isSelected: isSelected,
+                    ),
+                  );
                 },
-                onLongPressStart: (details) {
-                  setState(() {
-                    selectedIndex = index; // 選択された行を記録する
-                  });
-                  showPopupMenu(context, details.globalPosition, index);
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: !isSelected
-                        ? Colors.white
-                        : Colors.lightBlueAccent
-                            .withOpacity(0.3), // 選択時に色を変更：淡い青色
-                    border:
-                        Border(bottom: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: selectedColumns.entries
-                        .where((entry) => entry.value)
-                        .map((entry) => Expanded(
-                              child: Text(
-                                dataList[index][entry.key]?.toString() ?? "",
-                                textAlign: TextAlign.center,
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                ),
-              );
-            },
+              ),
+            ),
           ),
         ),
+
+
         Container(
           padding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
           child: Row(
@@ -437,7 +505,7 @@ class _LoadingPage extends State<LoadingPage>
                         isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
                   ),
                   child: Text(
-                    isReading ? '停止' : '読み込み開始',
+                    isReading ? '停止' : '読込み開始',
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),

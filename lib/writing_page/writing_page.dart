@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
-import '../led_page/led_page.dart';
-import '../search_page/search_page.dart';
 import '../theme.dart';
 
 class WritingPage extends StatefulWidget {
@@ -25,33 +22,66 @@ class _WritingPage extends State<WritingPage>
   List<Map<String, dynamic>> epcList = [];
   List<Map<String, dynamic>> himodukeList = [];
 
-  // 選択可能なカラム（初期状態は空）
-  Map<String, bool> selectedColumns = {};
+  // タブごとの表示項目（初期状態）
+  Map<String, Map<String, bool>> selectedColumnsMap = {
+    "EPC": {},
+    "Himoduke": {},
+  };
+
+  // ヘッダーとリストのスクロール位置同期用の ScrollController
+  final ScrollController _headerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length:2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
 
-    // 仮データ（外部データが来るまでのダミーを）
+    // ダミーデータの設定
     updateData([
-      {"No": "1", "EPC": "EPC 1001", "種別": "Type A", "回数": "1"},
-      {"No": "2", "EPC": "EPC 1002", "種別": "Type B", "回数": "2"},
+      {"済": "OK", "No": "1", "EPC": "EPC 1001", "種別": "Type A", "管理番号": "1234"},
+      {"済": "OK", "No": "2", "EPC": "EPC 1002", "種別": "Type B", "管理番号": "2468"},
+      {
+        "済": "OK",
+        "No": "3",
+        "EPC": "EPC 1003",
+        "種別": "Type C",
+        "管理番号": "9999999999"
+      },
     ], "EPC");
 
     updateData([
-      {"No": "1", "種別": "Type X"},
-      {"No": "2", "種別": "Type Y"},
-    ], "Bit");
-
-    updateData([
-      {"No": "1", "EPC": "EPC 2001", "種別": "Type C", "回数": "1"},
+      {"済": "OK", "No": "1", "EPC": "EPC 2001", "種別": "Type C", "管理番号": "1"},
+      {"済": "OK", "No": "2", "EPC": "EPC 1002", "種別": "Type B", "管理番号": "2468"},
+      {
+        "済": "OK",
+        "No": "3",
+        "EPC": "EPC 1003",
+        "種別": "Type C",
+        "管理番号": "9999999999"
+      },
     ], "Himoduke");
+
+    // ヘッダーとリストのスクロール位置を同期するリスナーを登録
+    _headerScrollController.addListener(() {
+      if (_listScrollController.hasClients &&
+          _listScrollController.offset != _headerScrollController.offset) {
+        _listScrollController.jumpTo(_headerScrollController.offset);
+      }
+    });
+    _listScrollController.addListener(() {
+      if (_headerScrollController.hasClients &&
+          _headerScrollController.offset != _listScrollController.offset) {
+        _headerScrollController.jumpTo(_listScrollController.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _headerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -66,179 +96,187 @@ class _WritingPage extends State<WritingPage>
     setState(() {
       if (type == "EPC") {
         epcList = newData;
+        selectedColumnsMap[type] = {
+          "済": true,
+          "EPC": true,
+          "No": false,
+          "種別": false,
+          "回数": false,
+        };
       } else if (type == "Himoduke") {
         himodukeList = newData;
-      }
-      // カラム選択初期化
-      if (newData.isNotEmpty) {
-        selectedColumns = {
+        selectedColumnsMap[type] = {
           for (var key in newData.first.keys) key: true,
         };
       }
     });
   }
 
-  // メニューを表示する関数
-  void showPopupMenu(BuildContext context, Offset position, int index) async {
-    final RenderBox overlay =
-    Overlay.of(context).context.findRenderObject() as RenderBox;
-    final selectedEPC = epcList[index]["EPC"] ?? "";
-
-    final result = await showMenu(
-      context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromLTWH(position.dx, position.dy, 100, 100),
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(value: "search", child: Text("探索")),
-        PopupMenuItem(value: "copy", child: Text("コピー")),
-        PopupMenuItem(value: "led", child: Text("LED")),
-      ],
-    );
-
-    if (result == "copy") {
-      Clipboard.setData(ClipboardData(text: selectedEPC)); // EPCをコピー
-      showCopyDialog();
-    } else if (result == "search") {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SearchPage()));
-    } else if (result == "led") {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LedPage()));
-    }
-  }
-
-  void selectionDialog() {
+  void selectionDialog(String tabType) {
     showDialog(
       context: context,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              backgroundColor: Colors.white,
-              title: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text('表示項目選択',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black)),
-                  SizedBox(height: 20), // タイトルとボタンの間の余白
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      SizedBox(
-                        width: 65,
-                        height: 30,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedColumns.updateAll(
-                                      (key, value) => false); // すべてのチェックボックスを解除
-                            });
-                            setStateDialog(() {});
-                          },
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.white24,
-                          ),
-                          child: Text(
-                            'クリア',
-                            style: TextStyle(fontSize: 10),
-                          ),
+        return StatefulBuilder(builder: (context, setStateDialog) {
+          var selectedColumns = selectedColumnsMap[tabType]!;
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            title: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('表示項目選択',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.black)),
+                SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    SizedBox(
+                      width: 65,
+                      height: 30,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedColumns.updateAll((key, value) => false);
+                          });
+                          setStateDialog(() {});
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white24,
                         ),
+                        child: Text('クリア', style: TextStyle(fontSize: 10)),
                       ),
-                      SizedBox(
-                        width: 85, // 幅
-                        height: 30, // 高さ
-                        child: ElevatedButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedColumns.updateAll(
-                                      (key, value) => true); // すべてのチェックボックスを選択
-                            });
-                            setStateDialog(() {});
-                          },
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: Colors.white24,
-                          ),
-                          child: Text(
-                            'すべて選択',
-                            style: TextStyle(fontSize: 10),
-                          ),
+                    ),
+                    SizedBox(
+                      width: 85,
+                      height: 30,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            selectedColumns.updateAll((key, value) => true);
+                          });
+                          setStateDialog(() {});
+                        },
+                        style: ElevatedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          backgroundColor: Colors.white24,
                         ),
+                        child: Text('すべて選択', style: TextStyle(fontSize: 10)),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: selectedColumns.keys.map((key) {
-                  return CheckboxListTile(
-                    title: Text(key),
-                    value: selectedColumns[key],
-                    onChanged: (bool? value) {
-                      setState(() {
-                        selectedColumns[key] = value ?? false;
-                      });
-                      setStateDialog(() {});
-                    },
-                  );
-                }).toList(),
-              ),
-              actions: [
-                Align(
-                  alignment: Alignment.center, // OKボタンを真ん中に配置
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      foregroundColor: Colors.white, // 文字を白
-                      backgroundColor:
-                      AppTheme.confirmDialogButtonColor, // 背景色を青系
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                        side: BorderSide(
-                            color: AppTheme.confirmDialogBorderColor,
-                            width: 2), // 明るい枠線
-                      ),
-                      padding: EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 10), // 余白を適切に
                     ),
-                    onPressed: () {
-                      Navigator.pop(context); // ダイアログを閉じる
-                    },
-                    child: Text(
-                      "OK",
-                      style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
+                  ],
                 ),
               ],
-            );
-          },
-        );
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children:
+                  selectedColumns.keys.where((key) => key != "済").map((key) {
+                return CheckboxListTile(
+                  title: Text(key),
+                  value: selectedColumns[key],
+                  onChanged: (bool? value) {
+                    setState(() {
+                      selectedColumns[key] = value ?? false;
+                    });
+                    setStateDialog(() {});
+                  },
+                );
+              }).toList(),
+            ),
+            actions: [
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: AppTheme.confirmDialogButtonColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(
+                          color: AppTheme.confirmDialogBorderColor, width: 2),
+                    ),
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text("OK",
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          );
+        });
       },
     );
   }
+  // 1行分（ヘッダー or データ）を描画する共通メソッド
+  Widget buildRow(
+      Map<String, dynamic>? rowData,            // nullならヘッダーとして扱う
+      Map<String, bool> selectedColumns, {
+        bool isHeader = false,                    // trueならヘッダー行
+        bool isSelected = false,                  // 選択状態（背景色を変える用）
+      }) {
+    // 背景色
+    final bgColor = isHeader
+        ? Colors.grey.shade300
+        : isSelected
+        ? Colors.lightBlueAccent.withOpacity(0.3)
+        : Colors.white;
 
-  // buildTabContentメソッド
+    return Container(
+      // ヘッダーだけ下線を濃くするとかも自由に設定できる
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(
+          bottom: BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
+        ),
+      ),
+      child: Row(
+        children: selectedColumns.entries
+            .where((entry) => entry.value)
+            .map((entry) => Container(
+          width: 100,
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            // ヘッダーならカラム名、そうでなければ rowData の値
+            isHeader
+                ? entry.key
+                : (rowData?[entry.key]?.toString() ?? ""),
+            style: isHeader
+                ? TextStyle(fontWeight: FontWeight.bold)
+                : null,
+            textAlign: TextAlign.center,
+          ),
+        ))
+            .toList(),
+      ),
+    );
+  }
+
   Widget buildTabContent(String tabType) {
-    List<Map<String, dynamic>> dataList;
-    bool isEPCTab = tabType == "EPC"; // タブがEPCかどうかを判定
+    // 1) タブがEPCか紐付けかでデータリストを切り替え
+    bool isEPCTab = (tabType == "EPC");
+    List<Map<String, dynamic>> dataList = isEPCTab ? epcList : himodukeList;
 
-    if (tabType == "EPC") {
-      dataList = epcList;
-    } else {
-      dataList = himodukeList;
-    }
-
+    // 2) 表示対象のカラム情報
+    var selectedColumns = selectedColumnsMap[tabType] ?? {};
     int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
+
+    // 3) 画面幅 & 必要な幅の計算
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final int columnCount =
+        selectedColumns.entries.where((entry) => entry.value).length;
+    final double calculatedWidth = columnCount * 100.0;
+    final double finalWidth =
+    calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
 
     return Column(
       children: [
+        // 上部の「書込み対象選択リスト」など
         Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
           child: Row(
@@ -252,14 +290,15 @@ class _WritingPage extends State<WritingPage>
                 ),
               ),
               Align(
-                alignment: Alignment.centerRight, // 右端に固定
+                alignment: Alignment.centerRight,
                 child: Padding(
-                  padding: EdgeInsets.only(right: 10), // 右に余白をつける
+                  padding: EdgeInsets.only(right: 10),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orangeAccent),
-                    onPressed: isEPCTab ? null : selectionDialog,
-                    child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
+                    onPressed: isEPCTab ? null : () => selectionDialog(tabType),
+                    child:
+                    Text('表示項目選択', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ),
@@ -267,127 +306,95 @@ class _WritingPage extends State<WritingPage>
           ),
         ),
 
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: Colors.white70),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: selectedColumns.entries
-                .where((entry) => entry.value)
-                .map((entry) => Expanded(
-                child: Text(entry.key, textAlign: TextAlign.center)))
-                .toList(),
+        // 4) ヘッダー部分
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _headerScrollController, // 同期用コントローラー
+          child: Container(
+            width: finalWidth, // カラム数が少なくても画面幅を確保
+            child: buildRow(null, selectedColumns, isHeader: true),
           ),
         ),
 
-        //タップ時や長押しした際のポップアップ処理
+        // 5) リスト部分
         Expanded(
-          child: ListView.builder(
-            itemCount: tagCount,
-            itemBuilder: (context, index) {
-              bool isSelected = index == selectedIndex; // 選択状態を判定する
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = index; // タップ時に選択行を変更する
-                  });
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _listScrollController, // 同期用コントローラー
+            child: Container(
+              width: finalWidth,
+              height: 300.0,
+              child: ListView.builder(
+                itemCount: tagCount,
+                itemBuilder: (context, index) {
+                  bool isSelected = (index == selectedIndex);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedIndex =
+                        (selectedIndex == index) ? null : index;
+                      });
+                    },
+                    onLongPressStart: (details) {
+                      setState(() {
+                        selectedIndex = index;
+                      });
+                    },
+                    // データ行を共通の buildRow で描画
+                    child: buildRow(
+                      dataList[index],
+                      selectedColumns,
+                      isSelected: isSelected,
+                    ),
+                  );
                 },
-                onLongPressStart: (details) {
-                  setState(() {
-                    selectedIndex = index; // 選択された行を記録する
-                  });
-                  showPopupMenu(context, details.globalPosition, index);
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: !isSelected
-                        ? Colors.white
-                        : Colors.lightBlueAccent
-                        .withOpacity(0.3), // 選択時に色を変更：淡い青色
-                    border:
-                    Border(bottom: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: selectedColumns.entries
-                        .where((entry) => entry.value)
-                        .map((entry) => Expanded(
-                      child: Text(
-                        dataList[index][entry.key]?.toString() ?? "",
-                        textAlign: TextAlign.center,
-                      ),
-                    ))
-                        .toList(),
-                  ),
-                ),
-              );
-            },
+              ),
+            ),
           ),
         ),
+        // 6) ボタンなど
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              //タグ数（左）
-              Text('タグ数：$tagCount', style: TextStyle(fontSize: 16,color: Colors.white)),
-
-              // 読み込みボタン
-              SizedBox(
-                width: 170,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: toggleReading,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                    isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
-                  ),
-                  child: Text(
-                    isReading ? '停止' : '書込み開始',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(
+            child: SizedBox(
+              width: 170,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: toggleReading,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                  isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                ),
+                child: Text(
+                  isReading ? '停止' : '書込み開始',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
-
-              // 保存ボタン
-              SizedBox(
-                width: 60,
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: () {
-                    saveDialog();
-                  },
-                  style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                  child: Text('保存',
-                      style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  //AppBarと
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('書込み', style: TextStyle(
-        color: Color(0xFF84848F),
-        fontSize: 25,
-        fontWeight: FontWeight.bold,
-      ),
-      ),
+      appBar: AppBar(
+        title: Text(
+          '書込み',
+          style: TextStyle(
+            color: Color(0xFF84848F),
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 80,
       ),
-
       body: Column(
         children: [
           // 書込み自動インクリメント設定
@@ -396,17 +403,14 @@ class _WritingPage extends State<WritingPage>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // 左側のテキスト
                 Text(
-                  "書込み自動インクリ",
+                  "書込みID自動インクリ",
                   style: TextStyle(fontSize: 12, color: Colors.white),
                 ),
                 SizedBox(width: 10),
-
-                // 右側のタブ選択
                 ToggleButtons(
-                  constraints: BoxConstraints(minWidth: 55, minHeight: 28), // さらにコンパクト化
-                  borderRadius: BorderRadius.circular(6), // 角丸を少し小さく
+                  constraints: BoxConstraints(minWidth: 50, minHeight: 28),
+                  borderRadius: BorderRadius.circular(6),
                   textStyle: TextStyle(fontSize: 12),
                   isSelected: [
                     _selectedIncrementMode == 0,
@@ -420,65 +424,73 @@ class _WritingPage extends State<WritingPage>
                     });
                   },
                   borderWidth: 1,
-                  borderColor:  Color(0xFF454343),
+                  borderColor: Color(0xFF454343),
                   selectedBorderColor: Colors.redAccent,
                   fillColor: Colors.blue.withOpacity(0.2),
                   selectedColor: Colors.redAccent,
                   children: [
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("なし")),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("10進数")),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("16進数")),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("改行")),
+                    Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("なし")),
+                    Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("10進")),
+                    Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("16進")),
+                    Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("改行")),
                   ],
                 ),
               ],
             ),
           ),
-
-          // ここに4つの入力欄を追加
+          // 4つの入力欄
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10), // 左右にちょっと余白
+            padding: EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(6, (index) {
                 return SizedBox(
                   width: MediaQuery.of(context).size.width * 0.15,
-                  height: 45, // 高さ50px
+                  height: 45,
                   child: TextField(
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
                     ],
-
-                    maxLength: 4, // 最大8桁
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced, // 4文字以上入力不可
+                    maxLength: 4,
+                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
                     decoration: InputDecoration(
-                      filled: true, // 背景を塗りつぶす
-                      fillColor: Color(0xFF84848F), // 薄いグレーの背景
+                      filled: true,
+                      fillColor: Color(0xFF84848F),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10), // 角を丸く
+                        borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide(color: Colors.blue, width: 1),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Color(0xFF454343), width: 1), // 通常時の枠
+                        borderSide:
+                            BorderSide(color: Color(0xFF454343), width: 1),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.redAccent, width: 2), // 入力時の枠
+                        borderSide:
+                            BorderSide(color: Colors.redAccent, width: 2),
                       ),
-                      hintText: '____', // 4文字入ることが分かるように
-                      hintStyle: TextStyle(color: Colors.white60), // ヒントの色を薄く
-                      counterText: "", // 文字カウンターを消す
-                      contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8), // 余白調整
+                      hintText: '____',
+                      hintStyle: TextStyle(color: Colors.white60),
+                      counterText: "",
+                      contentPadding:
+                          EdgeInsets.symmetric(horizontal: 5, vertical: 8),
                     ),
-                    textAlign: TextAlign.center, // テキスト中央配置
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,), // フォントサイズUP
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 );
               }),
             ),
           ),
-
           TabBar(
             controller: _tabController,
             tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],
@@ -486,6 +498,7 @@ class _WritingPage extends State<WritingPage>
           Expanded(
             child: TabBarView(
               controller: _tabController,
+              physics: NeverScrollableScrollPhysics(),
               children: [
                 buildTabContent("EPC"),
                 buildTabContent("Himoduke"),
@@ -494,104 +507,6 @@ class _WritingPage extends State<WritingPage>
           ),
         ],
       ),
-    );
-  }
-
-  // コピー完了ダイアログ
-  void showCopyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            "確認",
-            textAlign: TextAlign.center, // タイトルを中央揃え
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-            child: Text(
-              "EPCをコピーしました。",
-              style: AppTheme.confirmDialogTheme.contentTextStyle,
-            ),
-          ),
-          actions: [
-            Align(
-              alignment: Alignment.center, // OKボタンを真ん中に配置
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white, // 文字を白
-                  backgroundColor: AppTheme.confirmDialogButtonColor, // 背景色を青系
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                    side: BorderSide(
-                        color: AppTheme.confirmDialogBorderColor,
-                        width: 2), // 明るい枠線
-                  ),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10), // 余白を適切に
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  "OK",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void saveDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            "確認",
-            textAlign: TextAlign.center, // タイトルを中央揃え
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-            child: Text(
-              "リストを保存しました。",
-              textAlign: TextAlign.center, // コンテンツを中央揃え
-              style: AppTheme.confirmDialogTheme.contentTextStyle,
-            ),
-          ),
-          actions: [
-            Align(
-              alignment: Alignment.center, // OKボタンを真ん中に配置
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white, // 文字を白
-                  backgroundColor: AppTheme.confirmDialogButtonColor, // 背景色を青系
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                    side: BorderSide(
-                        color: AppTheme.confirmDialogBorderColor,
-                        width: 2), // 明るい枠線
-                  ),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10), // 余白を適切に
-                ),
-                onPressed: () {
-                  Navigator.pop(context); // ダイアログを閉じる
-                },
-                child: Text(
-                  "OK",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

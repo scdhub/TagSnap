@@ -16,51 +16,85 @@ class _LocImportPage extends State<LocImportPage> {
     "LocationData_20240328_160545.csv",
   ];
 
-  void _showConfirmationDialog(int index) {
+  void _showConfirmationDialog(BuildContext context, int index) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext context) {
         return AlertDialog(
           backgroundColor: Colors.white,
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "注意！",
-                style: TextStyle(
-                  color: Colors.red,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text("ロケーションデータは全て上書きされます"),
-            ],
+          title: Text(
+            '注意',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          content: Text(
+            'ロケーションデータは全て上書きされます',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+            ),
           ),
           actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showSuccessDialog();
-              },
-              child: const Text("読み込み"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("キャンセル"),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.redAccent, width: 2),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showSuccessDialog(context); // contextを渡すように修正
+                  },
+                  child: Text(
+                    '読み込み',
+                    style: TextStyle(color: Colors.redAccent),
+                  ),
+                ),
+                SizedBox(width: 30),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.grey, width: 2),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'キャンセル',
+                    style: TextStyle(color: Colors.black87),
+                  ),
+                ),
+              ],
             ),
           ],
         );
       },
     );
   }
-
-  void _showSuccessDialog() {
+  void _showSuccessDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => const AlertDialog(
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
         content: Center(
           heightFactor: 1.5,
-          child: Text("操作が成功しました"),
+          child: Text(
+            "インポートが成功しました",
+            style: TextStyle(fontSize: 16),
+          ),
         ),
       ),
     );
@@ -73,6 +107,7 @@ class _LocImportPage extends State<LocImportPage> {
       });
     });
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +134,7 @@ class _LocImportPage extends State<LocImportPage> {
               setState(() {
                 selectedIndex = index;
               });
-              _showConfirmationDialog(index);
+              _showConfirmationDialog(context,index);
             },
             child: Container(
               color: selectedIndex == index ? Colors.grey[300] : Colors.white,

@@ -28,11 +28,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
   final TextEditingController extra1Controller = TextEditingController();
   final TextEditingController extra2Controller = TextEditingController();
 
-  bool isLocationFilterOn = false;
-  bool isCodeFilterOn = false;
-  bool isNameFilterOn = false;
-  bool isExtra1FilterOn = false;
-  bool isExtra2FilterOn = false;
+  bool isLocationFilterOn = true;
+  bool isCodeFilterOn = true;
+  bool isNameFilterOn = true;
+  bool isExtra1FilterOn = true;
+  bool isExtra2FilterOn = true;
 
   List<Map<String, String>> inventory = [
     {
@@ -178,34 +178,40 @@ class _InventoryScreenState extends State<InventoryScreen> {
           Switch(
             value: isActive,
             onChanged: onToggle,
+            activeColor: AppTheme.filterOnColor,//O
+            inactiveThumbColor: AppTheme.filterOffColor,//Offのときの●の色
+            inactiveTrackColor: AppTheme.filterOffColor.withOpacity(0.5),//OFFのときのトラック部分（バー）の色
           ),
-          SizedBox(width: 4), // スイッチとテキストの間隔を少しだけに
+          SizedBox(width: 4), // スイッチとテキストの間隔をあける
           SizedBox(
-            width: 80, // ラベルの幅を固定化して揃える
+            width: 80, // ラベルの幅
             child: Text(
               label,
-              style: TextStyle(fontSize: 14),
+              style: TextStyle(fontSize: 14,color: AppTheme.textColor,),
             ),
           ),
-          SizedBox(width: 8), // テキストとTextFieldの間隔
-          Expanded(
-            child: SizedBox(
-              height: 40,
-              child: TextField(
-                controller: controller,
-                onChanged: (value) => filterList(),
-                enabled: isActive,
-                style: TextStyle(color: Colors.white), // 入力文字の色
-                decoration: InputDecoration(
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  border: OutlineInputBorder(),
-                  hintText: '絞り込むテキスト',
-                  hintStyle: TextStyle(color: Colors.white60),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white60),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: Colors.white),
+          SizedBox(width: 8), // テキストとTextFieldの間隔をあける
+
+        Expanded(
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              controller: controller,
+              onChanged: (value) => filterList(),
+              enabled: isActive,
+              style: TextStyle(color: Colors.white),
+              maxLines: 1,
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                border: OutlineInputBorder(),
+                hintText: '絞り込むテキスト',
+                hintStyle: TextStyle(color: Colors.white60, overflow: TextOverflow.ellipsis),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white60),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
                 ),
               ),
             ),

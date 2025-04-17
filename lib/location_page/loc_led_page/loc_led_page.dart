@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../led_page/led_page.dart';
-import '../../search_page/search_page.dart';
 import '../../theme.dart';
-
+import '../loc_search_page/loc_search_page.dart';
 
 class LocLedPage extends StatefulWidget {
   const LocLedPage({super.key});
@@ -13,45 +11,63 @@ class LocLedPage extends StatefulWidget {
   State<StatefulWidget> createState() => _LocLedPage();
 }
 
-class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin {
+class _LocLedPage extends State<LocLedPage>
+    with SingleTickerProviderStateMixin {
   bool isReading = false;
   bool isNoDoubleRead = false;
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
 
-
   // 各タブのデータ（実際は外部から受け取る）
   List<Map<String, dynamic>> epcList = [];
   List<Map<String, dynamic>> himodukeList = [];
 
-  // 選択可能なカラム（初期状態は空）
-  Map<String, bool> selectedColumns = {};
+  // タブごとの表示項目
+  Map<String, Map<String, bool>> selectedColumnsMap = {
+    "EPC": {},
+    "Himoduke": {},
+  };
+
+  // ヘッダーとリストのスクロール位置同期用の ScrollController
+  final ScrollController _headerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length:2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
 
-    // 仮データ（外部データが来るまでのダミーを）
+    // 仮データ（外部データが来るまでのダミー）
     updateData([
-      {"No": "1", "EPC": "EPC 1001", "種別": "Type A", "回数": "1"},
-      {"No": "2", "EPC": "EPC 1002", "種別": "Type B", "回数": "2"},
+      {"EPC": "EPC 1001"},
+      {"EPC": "EPC 1002"},
     ], "EPC");
-
-    updateData([
-      {"No": "1", "種別": "Type X"},
-      {"No": "2", "種別": "Type Y"},
-    ], "Bit");
 
     updateData([
       {"No": "1", "EPC": "EPC 2001", "種別": "Type C", "回数": "1"},
     ], "Himoduke");
+
+    // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
+    _headerScrollController.addListener(() {
+      if (_listScrollController.hasClients &&
+          _listScrollController.offset != _headerScrollController.offset) {
+        _listScrollController.jumpTo(_headerScrollController.offset);
+      }
+    });
+    _listScrollController.addListener(() {
+      if (_headerScrollController.hasClients &&
+          _headerScrollController.offset != _listScrollController.offset) {
+        _headerScrollController.jumpTo(_listScrollController.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _headerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -66,12 +82,15 @@ class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin 
     setState(() {
       if (type == "EPC") {
         epcList = newData;
+        selectedColumnsMap[type] = {
+          "EPC": true,
+          "No": false,
+          "種別": false,
+          "回数": false,
+        };
       } else if (type == "Himoduke") {
         himodukeList = newData;
-      }
-      // カラム選択初期化
-      if (newData.isNotEmpty) {
-        selectedColumns = {
+        selectedColumnsMap[type] = {
           for (var key in newData.first.keys) key: true,
         };
       }
@@ -93,7 +112,6 @@ class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin 
       items: [
         PopupMenuItem(value: "search", child: Text("探索")),
         PopupMenuItem(value: "copy", child: Text("コピー")),
-        PopupMenuItem(value: "led", child: Text("LED")),
       ],
     );
 
@@ -102,14 +120,13 @@ class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin 
       showCopyDialog();
     } else if (result == "search") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SearchPage()));
-    } else if (result == "led") {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LedPage()));
+          context, MaterialPageRoute(builder: (context) => LocSearchPage()));
     }
   }
 
-  void selectionDialog() {
+  void selectionDialog(String tabType) {
+    Map<String, bool> selectedColumns = selectedColumnsMap[tabType]!;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -223,19 +240,58 @@ class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin 
       },
     );
   }
+  Widget buildRow(
+      Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
+      Map<String, bool> selectedColumns, {
+        bool isHeader = false, // trueならヘッダー行
+        bool isSelected = false, // 選択状態（背景色を変える用）
+      }) {
+    final bgColor = isHeader
+        ? Colors.grey.shade300
+        : isSelected
+        ? Colors.lightBlueAccent.withOpacity(0.3)
+        : Colors.white;
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(
+          bottom: BorderSide(
+              color: isHeader ? Colors.grey : Colors.grey.shade300),
+        ),
+      ),
+      child: Row(
+        children: selectedColumns.entries
+            .where((entry) => entry.value)
+            .map((entry) => Container(
+          width: 100,
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            isHeader
+                ? entry.key
+                : (rowData?[entry.key]?.toString() ?? ""),
+            style:
+            isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
+            textAlign: TextAlign.center,
+          ),
+        ))
+            .toList(),
+      ),
+    );
+  }
 
-  // buildTabContentメソッド
   Widget buildTabContent(String tabType) {
-    List<Map<String, dynamic>> dataList;
-    bool isEPCTab = tabType == "EPC"; // タブがEPCかどうかを判定
-
-    if (tabType == "EPC") {
-      dataList = epcList;
-    } else {
-      dataList = himodukeList;
-    }
-
+    bool isEPCTab = (tabType == "EPC");
+    List<Map<String, dynamic>> dataList = isEPCTab ? epcList : himodukeList;
+    var selectedColumns = selectedColumnsMap[tabType] ?? {};
     int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final int columnCount =
+        selectedColumns.entries.where((entry) => entry.value).length;
+    final double calculatedWidth = columnCount * 100.0;
+    final double finalWidth =
+    calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
 
     return Column(
       children: [
@@ -252,201 +308,121 @@ class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin 
                 ),
               ),
               Align(
-                alignment: Alignment.centerRight, // 右端に固定
+                alignment: Alignment.centerRight,
                 child: Padding(
-                  padding: EdgeInsets.only(right: 10), // 右に余白をつける
+                  padding: EdgeInsets.only(right: 10),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orangeAccent),
-                    onPressed: isEPCTab ? null : selectionDialog,
-                    child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
+                    onPressed: isEPCTab ? null : () => selectionDialog(tabType),
+                    child:
+                    Text('表示項目選択', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ),
             ],
           ),
         ),
-
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: Colors.white70),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: selectedColumns.entries
-                .where((entry) => entry.value)
-                .map((entry) => Expanded(
-                child: Text(entry.key, textAlign: TextAlign.center)))
-                .toList(),
+        // ヘッダー部分
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _headerScrollController,
+          child: Container(
+            width: finalWidth,
+            child: buildRow(null, selectedColumns, isHeader: true),
           ),
         ),
-
-        //タップ時や長押しした際のポップアップ処理
+        // リスト部分
         Expanded(
-          child: ListView.builder(
-            itemCount: tagCount,
-            itemBuilder: (context, index) {
-              bool isSelected = index == selectedIndex; // 選択状態を判定する
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = index; // タップ時に選択行を変更する
-                  });
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _listScrollController,
+            child: Container(
+              width: finalWidth,
+              height: 300.0,
+              child: ListView.builder(
+                itemCount: tagCount,
+                itemBuilder: (context, index) {
+                  bool isSelected = (index == selectedIndex);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedIndex =
+                        (selectedIndex == index) ? null : index;
+                      });
+                    },
+                    onLongPressStart: (details) {
+                      setState(() {
+                        selectedIndex = index;
+                        showPopupMenu(context, details.globalPosition, index);
+                      });
+                    },
+                    child: buildRow(
+                      dataList[index],
+                      selectedColumns,
+                      isSelected: isSelected,
+                    ),
+                  );
                 },
-                onLongPressStart: (details) {
-                  setState(() {
-                    selectedIndex = index; // 選択された行を記録する
-                  });
-                  showPopupMenu(context, details.globalPosition, index);
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: !isSelected
-                        ? Colors.white
-                        : Colors.lightBlueAccent
-                        .withOpacity(0.3), // 選択時に色を変更：淡い青色
-                    border:
-                    Border(bottom: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: selectedColumns.entries
-                        .where((entry) => entry.value)
-                        .map((entry) => Expanded(
-                      child: Text(
-                        dataList[index][entry.key]?.toString() ?? "",
-                        textAlign: TextAlign.center,
-                      ),
-                    ))
-                        .toList(),
-                  ),
-                ),
-              );
-            },
+              ),
+            ),
           ),
         ),
+
+
+        // 書き込み／点灯ボタンなど
         Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 15),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              //タグ数（左）
-              Text('タグ数：$tagCount', style: TextStyle(fontSize: 16,color: Colors.white)),
-
-              // 読み込みボタン
-              SizedBox(
-                width: 170,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: toggleReading,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                    isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
-                  ),
-                  child: Text(
-                    isReading ? '停止' : 'LED点灯開始',
-                    style: TextStyle(color: Colors.white, fontSize: 18),
-                  ),
+          padding: EdgeInsets.symmetric(vertical: 20),
+          child: Center(
+            child: SizedBox(
+              width: 170,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: toggleReading,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                  isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                ),
+                child: Text(
+                  isReading ? '停止' : '点灯開始',
+                  style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
-
-              // 保存ボタン
-              SizedBox(
-                width: 60,
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: () {
-                    saveDialog();
-                  },
-                  style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                  child: Text('保存',
-                      style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ],
     );
   }
 
-  //AppBarと
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('LED点灯',style: TextStyle(
-          color: Color(0xFF84848F),
-        fontSize: 25,
-        fontWeight: FontWeight.bold,
+      appBar: AppBar(
+        title: Text(
+          'LED点灯',
+          style: TextStyle(
+            color: Color(0xFF84848F),
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        centerTitle: true,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        toolbarHeight: 80,
       ),
-    ),
-    centerTitle: true,
-    backgroundColor: Colors.white,
-    elevation: 0,
-    toolbarHeight: 80,
-    ),
       body: Column(
         children: [
-          // 書込み自動インクリメント設定
+          // ここに必要な入力欄や設定UI
           Padding(
-            padding: EdgeInsets.only(left: 10, bottom: 5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // 左側のテキスト
-                Text(
-                  "点灯タグEPC",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              ],
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Text(
+              "点灯タグEPC",
+              style: TextStyle(fontSize: 18, color: Colors.white),
             ),
           ),
-          // ここに4つの入力欄を追加
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10), // 左右にちょっと余白
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(6, (index) {
-                return SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.15,
-                  height: 45, // 高さ50px
-                  child: TextField(
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
-                    ],
-
-                    maxLength: 4, // 最大8桁
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced, // 4文字以上入力不可
-                    decoration: InputDecoration(
-                      filled: true, // 背景を塗りつぶす
-                      fillColor: Color(0xFF84848F), // 薄いグレーの背景
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10), // 角を丸く
-                        borderSide: BorderSide(color: Colors.blue, width: 1),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Color(0xFF454343), width: 1), // 通常時の枠
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(color: Colors.redAccent, width: 2), // 入力時の枠
-                      ),
-                      hintText: '____', // 4文字入ることが分かるように
-                      hintStyle: TextStyle(color: Colors.white60), // ヒントの色を薄く
-                      counterText: "", // 文字カウンターを消す
-                      contentPadding: EdgeInsets.symmetric(horizontal: 5, vertical: 8), // 余白調整
-                    ),
-                    textAlign: TextAlign.center, // テキスト中央配置
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold,), // フォントサイズUP
-                  ),
-                );
-              }),
-            ),
-          ),
-
+          // 入力欄等は省略...
           TabBar(
             controller: _tabController,
             tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],
@@ -465,7 +441,7 @@ class _LocLedPage extends State<LocLedPage> with SingleTickerProviderStateMixin 
     );
   }
 
-  // コピー完了ダイアログ
+// コピー完了ダイアログ
   void showCopyDialog() {
     showDialog(
       context: context,

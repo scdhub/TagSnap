@@ -50,7 +50,7 @@ class _DeparturePage extends State<DeparturePage> {
                 ),
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 10),
 
             // ロケーション（左寄せ）
             Text(
@@ -80,7 +80,7 @@ class _DeparturePage extends State<DeparturePage> {
                     color: Colors.black),
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 10),
 
             // コード・品名・拡張欄1・拡張欄2の表
             Container(
@@ -103,7 +103,7 @@ class _DeparturePage extends State<DeparturePage> {
               ),
             ),
 
-            SizedBox(height: 30),
+            SizedBox(height: 20),
 
             //読み込んだタグ情報エリア（グレーのテキスト）
             Center(
@@ -120,7 +120,7 @@ class _DeparturePage extends State<DeparturePage> {
                 ),
               ),
             ),
-            SizedBox(height: 40),
+            SizedBox(height: 15),
 
             // ボタン（センター配置）
             Center(
@@ -153,7 +153,7 @@ class _DeparturePage extends State<DeparturePage> {
                       ),
                     ),
                   ),
-                  SizedBox(height: 30), // ボタンの間隔
+                  SizedBox(height: 25), // ボタンの間隔
 
                   // 入庫登録ボタン
                   SizedBox(

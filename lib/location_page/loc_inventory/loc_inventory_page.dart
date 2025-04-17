@@ -40,11 +40,6 @@ class _LocInventoryPage extends State<LocInventoryPage>
     ], "EPC");
 
     updateData([
-      {"No": "1", "種別": "Type X"},
-      {"No": "2", "種別": "Type Y"},
-    ], "Bit");
-
-    updateData([
       {"No": "1", "EPC": "EPC 2001", "種別": "Type C", "回数": "1"},
     ], "Himoduke");
   }
@@ -61,6 +56,12 @@ class _LocInventoryPage extends State<LocInventoryPage>
     });
   }
 
+  //タブを独立
+  Map<String, Map<String, bool>> selectedColumnsMap = {
+    "EPC": {},
+    "Himoduke": {},
+  };
+
   // 外部データを受け取る関数
   void updateData(List<Map<String, dynamic>> newData, String type) {
     setState(() {
@@ -69,11 +70,20 @@ class _LocInventoryPage extends State<LocInventoryPage>
       } else if (type == "Himoduke") {
         himodukeList = newData;
       }
-      // カラム選択初期化
+
       if (newData.isNotEmpty) {
-        selectedColumns = {
-          for (var key in newData.first.keys) key: true,
-        };
+        if (type == "EPC") {
+          selectedColumnsMap[type] = {
+            "EPC": true,
+            "No": false,
+            "種別": false,
+            "回数": false,
+          };
+        } else {
+          selectedColumnsMap[type] = {
+            for (var key in newData.first.keys) key: true,
+          };
+        }
       }
     });
   }
@@ -109,7 +119,7 @@ class _LocInventoryPage extends State<LocInventoryPage>
     }
   }
 
-  void selectionDialog() {
+  void selectionDialog(String tabType) {
     showDialog(
       context: context,
       builder: (context) {
@@ -229,6 +239,7 @@ class _LocInventoryPage extends State<LocInventoryPage>
   Widget buildTabContent(String tabType) {
     List<Map<String, dynamic>> dataList;
     bool isEPCTab = tabType == "EPC"; // タブがEPCかどうかを判定
+    var selectedColumns = selectedColumnsMap[tabType] ?? {};
 
     if (tabType == "EPC") {
       dataList = epcList;
@@ -259,7 +270,7 @@ class _LocInventoryPage extends State<LocInventoryPage>
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orangeAccent),
-                    onPressed: isEPCTab ? null : selectionDialog,
+                    onPressed: isEPCTab ? null : () => selectionDialog(tabType),
                     child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
                   ),
                 ),
@@ -291,14 +302,12 @@ class _LocInventoryPage extends State<LocInventoryPage>
               return GestureDetector(
                 onTap: () {
                   setState(() {
-                    selectedIndex = index; // タップ時に選択行を変更する
+                    if (selectedIndex == index) {
+                      selectedIndex = null; // すでに選択されていたら解除
+                    } else {
+                      selectedIndex = index; // 選択状態にする
+                    }
                   });
-                },
-                onLongPressStart: (details) {
-                  setState(() {
-                    selectedIndex = index; // 選択された行を記録する
-                  });
-                  showPopupMenu(context, details.globalPosition, index);
                 },
                 child: Container(
                   padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
@@ -396,6 +405,7 @@ class _LocInventoryPage extends State<LocInventoryPage>
           Expanded(
             child: TabBarView(
               controller: _tabController,
+              physics: NeverScrollableScrollPhysics(),//左右スクロールでタブ移動しないようにする
               children: [
                 buildTabContent("EPC"),
                 buildTabContent("Himoduke"),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tagsnap/inventory_page/inventory_page.dart';
 import 'package:tagsnap/location_page/loc_inventory/loc_inventory_page.dart';
 
 

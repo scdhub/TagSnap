@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../led_page/led_page.dart';
-import '../../search_page/search_page.dart';
 import '../../theme.dart';
+import '../loc_led_page/loc_led_page.dart';
 
 
 class LocSearchPage extends StatefulWidget {
@@ -30,6 +29,11 @@ class _LocSearchPage extends State<LocSearchPage>
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
 
+  // ヘッダーとリストのスクロール位置同期用の ScrollController
+  final ScrollController _headerScrollController = ScrollController();
+  final ScrollController _listScrollController = ScrollController();
+
+
   @override
   void initState() {
     super.initState();
@@ -42,18 +46,28 @@ class _LocSearchPage extends State<LocSearchPage>
     ], "EPC");
 
     updateData([
-      {"No": "1", "種別": "Type X"},
-      {"No": "2", "種別": "Type Y"},
-    ], "Bit");
-
-    updateData([
       {"No": "1", "EPC": "EPC 2001", "種別": "Type C", "回数": "1"},
     ], "Himoduke");
+    // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
+    _headerScrollController.addListener(() {
+      if (_listScrollController.hasClients &&
+          _listScrollController.offset != _headerScrollController.offset) {
+        _listScrollController.jumpTo(_headerScrollController.offset);
+      }
+    });
+    _listScrollController.addListener(() {
+      if (_headerScrollController.hasClients &&
+          _headerScrollController.offset != _listScrollController.offset) {
+        _headerScrollController.jumpTo(_listScrollController.offset);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _headerScrollController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
@@ -63,6 +77,12 @@ class _LocSearchPage extends State<LocSearchPage>
     });
   }
 
+  //タブを独立
+  Map<String, Map<String, bool>> selectedColumnsMap = {
+    "EPC": {},
+    "Himoduke": {},
+  };
+
   // 外部データを受け取る関数
   void updateData(List<Map<String, dynamic>> newData, String type) {
     setState(() {
@@ -71,11 +91,20 @@ class _LocSearchPage extends State<LocSearchPage>
       } else if (type == "Himoduke") {
         himodukeList = newData;
       }
-      // カラム選択初期化
+
       if (newData.isNotEmpty) {
-        selectedColumns = {
-          for (var key in newData.first.keys) key: true,
-        };
+        if (type == "EPC") {
+          selectedColumnsMap[type] = {
+            "EPC": true,
+            "No": false,
+            "種別": false,
+            "回数": false,
+          };
+        } else {
+          selectedColumnsMap[type] = {
+            for (var key in newData.first.keys) key: true,
+          };
+        }
       }
     });
   }
@@ -93,7 +122,6 @@ class _LocSearchPage extends State<LocSearchPage>
         Offset.zero & overlay.size,
       ),
       items: [
-        PopupMenuItem(value: "search", child: Text("探索")),
         PopupMenuItem(value: "copy", child: Text("コピー")),
         PopupMenuItem(value: "led", child: Text("LED")),
       ],
@@ -102,16 +130,13 @@ class _LocSearchPage extends State<LocSearchPage>
     if (result == "copy") {
       Clipboard.setData(ClipboardData(text: selectedEPC)); // EPCをコピー
       showCopyDialog();
-    } else if (result == "search") {
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SearchPage()));
     } else if (result == "led") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LedPage()));
+          context, MaterialPageRoute(builder: (context) => LocLedPage()));
     }
   }
 
-  void selectionDialog() {
+  void selectionDialog(String tabType) {
     showDialog(
       context: context,
       builder: (context) {
@@ -226,21 +251,63 @@ class _LocSearchPage extends State<LocSearchPage>
     );
   }
 
-  // buildTabContentメソッド
+
+  Widget buildRow(
+      Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
+      Map<String, bool> selectedColumns, {
+        bool isHeader = false, // trueならヘッダー行
+        bool isSelected = false, // 選択状態（背景色を変える用）
+      }) {
+    final bgColor = isHeader
+        ? Colors.grey.shade300
+        : isSelected
+        ? Colors.lightBlueAccent.withOpacity(0.3)
+        : Colors.white;
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        border: Border(
+          bottom: BorderSide(
+              color: isHeader ? Colors.grey : Colors.grey.shade300),
+        ),
+      ),
+      child: Row(
+        children: selectedColumns.entries
+            .where((entry) => entry.value)
+            .map((entry) => Container(
+          width: 100,
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text(
+            isHeader
+                ? entry.key
+                : (rowData?[entry.key]?.toString() ?? ""),
+            style:
+            isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
+            textAlign: TextAlign.center,
+          ),
+        ))
+            .toList(),
+      ),
+    );
+  }
+
   Widget buildTabContent(String tabType) {
-    List<Map<String, dynamic>> dataList;
-    bool isEPCTab = tabType == "EPC"; // タブがEPCかどうかを判定
-
-    if (tabType == "EPC") {
-      dataList = epcList;
-    } else {
-      dataList = himodukeList;
-    }
-
+    bool isEPCTab = (tabType == "EPC");
+    List<Map<String, dynamic>> dataList = isEPCTab ? epcList : himodukeList;
+    var selectedColumns = selectedColumnsMap[tabType] ?? {};
     int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
+
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final int columnCount =
+        selectedColumns.entries.where((entry) => entry.value).length;
+    final double calculatedWidth = columnCount * 100.0;
+    final double finalWidth =
+    calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
 
     return Column(
       children: [
+        // 上部の「書込み対象選択リスト」など
         Padding(
           padding: EdgeInsets.symmetric(vertical: 10),
           child: Row(
@@ -248,84 +315,70 @@ class _LocSearchPage extends State<LocSearchPage>
               Expanded(
                 child: Center(
                   child: Text(
-                    "書込み対象選択リスト",
+                    "探索対象リスト",
                     style: TextStyle(fontSize: 15, color: Colors.white),
                   ),
                 ),
               ),
               Align(
-                alignment: Alignment.centerRight, // 右端に固定
+                alignment: Alignment.centerRight,
                 child: Padding(
-                  padding: EdgeInsets.only(right: 10), // 右に余白をつける
+                  padding: EdgeInsets.only(right: 10),
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orangeAccent),
-                    onPressed: isEPCTab ? null : selectionDialog,
-                    child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
+                    onPressed: isEPCTab ? null : () => selectionDialog(tabType),
+                    child:
+                    Text('表示項目選択', style: TextStyle(color: Colors.white)),
                   ),
                 ),
               ),
             ],
           ),
         ),
-
-        Container(
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(color: Colors.white70),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: selectedColumns.entries
-                .where((entry) => entry.value)
-                .map((entry) => Expanded(
-                child: Text(entry.key, textAlign: TextAlign.center)))
-                .toList(),
+        // ヘッダー部分
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _headerScrollController,
+          child: Container(
+            width: finalWidth,
+            child: buildRow(null, selectedColumns, isHeader: true),
           ),
         ),
-
-        //タップ時や長押しした際のポップアップ処理
+        // リスト部分
         Expanded(
-          child: ListView.builder(
-            itemCount: tagCount,
-            itemBuilder: (context, index) {
-              bool isSelected = index == selectedIndex; // 選択状態を判定する
-
-              return GestureDetector(
-                onTap: () {
-                  setState(() {
-                    selectedIndex = index; // タップ時に選択行を変更する
-                  });
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            controller: _listScrollController,
+            child: Container(
+              width: finalWidth,
+              height: 300.0,
+              child: ListView.builder(
+                itemCount: tagCount,
+                itemBuilder: (context, index) {
+                  bool isSelected = (index == selectedIndex);
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        selectedIndex =
+                        (selectedIndex == index) ? null : index;
+                      });
+                    },
+                    onLongPressStart: (details) {
+                      setState(() {
+                        selectedIndex = index;
+                        showPopupMenu(context, details.globalPosition, index);
+                      });
+                    },
+                    child: buildRow(
+                      dataList[index],
+                      selectedColumns,
+                      isSelected: isSelected,
+                    ),
+                  );
                 },
-                onLongPressStart: (details) {
-                  setState(() {
-                    selectedIndex = index; // 選択された行を記録する
-                  });
-                  showPopupMenu(context, details.globalPosition, index);
-                },
-                child: Container(
-                  padding: EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: !isSelected
-                        ? Colors.white
-                        : Colors.lightBlueAccent
-                        .withOpacity(0.3), // 選択時に色を変更：淡い青色
-                    border:
-                    Border(bottom: BorderSide(color: Colors.grey.shade300)),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: selectedColumns.entries
-                        .where((entry) => entry.value)
-                        .map((entry) => Expanded(
-                      child: Text(
-                        dataList[index][entry.key]?.toString() ?? "",
-                        textAlign: TextAlign.center,
-                      ),
-                    ))
-                        .toList(),
-                  ),
-                ),
-              );
-            },
+              ),
+            ),
           ),
         ),
 
@@ -505,6 +558,7 @@ class _LocSearchPage extends State<LocSearchPage>
           Expanded(
             child: TabBarView(
               controller: _tabController,
+              physics: NeverScrollableScrollPhysics(),//左右スクロールでタブ移動しないようにする
               children: [
                 buildTabContent("EPC"),
                 buildTabContent("Himoduke"),

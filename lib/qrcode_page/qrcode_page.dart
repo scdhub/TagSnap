@@ -12,16 +12,25 @@ class QrcodePage extends StatefulWidget {
   State<QrcodePage> createState() => _QrcodePage();
 }
 
+// ヘッダーとリストのスクロール位置同期用の ScrollController
+final ScrollController _headerScrollController = ScrollController();
+final ScrollController _listScrollController = ScrollController();
+
+
 class _QrcodePage extends State<QrcodePage> {
+  int? selectedIndex;
   List<Map<String, String>> dataList = [
     {"rfid": "", "product": "LR-S01", "lot": "ZA18531A-50011N"}
   ];
+
 
   Map<String, bool> selectedColumns = {
     "RFID": true,
     "品番": true,
     "ロット": true,
   };
+
+  final List<String> columnOrder = ["RFID", "品番", "ロット"];
 
   bool isReading = false;
   int get tagCount => dataList.length;
@@ -32,10 +41,7 @@ class _QrcodePage extends State<QrcodePage> {
 
     String jsonData = jsonEncode(dataList);
     await file.writeAsString(jsonData);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("データを保存しました")),
-    );
+    saveDialog();
   }
 
   void toggleReading() {
@@ -90,7 +96,6 @@ class _QrcodePage extends State<QrcodePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // クリアボタン
                       SizedBox(
                         width: 65,
                         height: 30,
@@ -108,7 +113,6 @@ class _QrcodePage extends State<QrcodePage> {
                           child: const Text('クリア', style: TextStyle(fontSize: 10)),
                         ),
                       ),
-                      // すべて選択ボタン
                       SizedBox(
                         width: 85,
                         height: 30,
@@ -173,17 +177,19 @@ class _QrcodePage extends State<QrcodePage> {
           },
         );
       },
-    ); // ← 正しくはここで閉じて、セミコロン
-}
-    @override
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('QR/RFID紐付け', style: TextStyle(
-          color: Color(0xFF84848F),
-          fontSize: 25,
-          fontWeight: FontWeight.bold,
-        ),
+        title: const Text('QR/RFID紐付け',
+          style: TextStyle(
+            color: Color(0xFF84848F),
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
@@ -192,7 +198,6 @@ class _QrcodePage extends State<QrcodePage> {
       ),
       body: Column(
         children: [
-          // 上部ボタン
           Padding(
             padding: const EdgeInsets.all(10),
             child: Row(
@@ -204,7 +209,7 @@ class _QrcodePage extends State<QrcodePage> {
                 ),
                 const SizedBox(width: 10),
                 const Text('紐付けリスト',
-                    style: TextStyle(fontWeight: FontWeight.bold,color: Colors.white)),
+                    style: TextStyle(fontSize: 15, color: Colors.white)),
                 const Spacer(),
                 ElevatedButton(
                   onPressed: selectionDialog,
@@ -220,41 +225,88 @@ class _QrcodePage extends State<QrcodePage> {
             color: Colors.grey[300],
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             child: Row(
-              children: [
-                if (selectedColumns["RFID"]!)
-                  const SizedBox(width: 50, child: Text('RFID', style: TextStyle(color: Colors.red))),
-                if (selectedColumns["品番"]!)
-                  const SizedBox(width: 100, child: Text('品番')),
-                if (selectedColumns["ロット"]!)
-                  const Expanded(child: Text('ロット')),
-              ],
+              children: columnOrder
+                  .where((key) => selectedColumns[key] == true)
+                  .map((key) {
+                switch (key) {
+                  case 'RFID':
+                    return const SizedBox(
+                      width: 50,
+                      child: Text('RFID', style: TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                    );
+                  case '品番':
+                    return const SizedBox(
+                      width: 100,
+                      child: Text('品番', textAlign: TextAlign.center),
+                    );
+                  case 'ロット':
+                    return const SizedBox(
+                      width: 180,
+                      child: Text('ロット', textAlign: TextAlign.center),
+                    );
+                  default:
+                    return Container();
+                }
+              }).toList(),
             ),
           ),
+
 
           // リスト表示
           Expanded(
             child: ListView.builder(
-              itemCount: dataList.length,
+              itemCount: tagCount,
               itemBuilder: (context, index) {
-                final item = dataList[index];
+                bool isSelected = index == selectedIndex;
+
                 return GestureDetector(
-                  onTapDown: (details) {
+                  onTap: () {
+                    setState(() {
+                      selectedIndex = selectedIndex == index ? null : index;
+                    });
+                  },
+                  onLongPressStart: (details) {
+                    setState(() {
+                      selectedIndex = index;
+                    });
                     showPopupMenu(context, details.globalPosition, index);
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: const BoxDecoration(
-                      border: Border(bottom: BorderSide(color: Colors.grey)),
+                    padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Colors.lightBlueAccent.withOpacity(0.3)
+                          : Colors.white,
+                      border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
                     ),
                     child: Row(
-                      children: [
-                        if (selectedColumns["RFID"]!)
-                          SizedBox(width: 50, child: Text(item["rfid"] ?? "")),
-                        if (selectedColumns["品番"]!)
-                          SizedBox(width: 100, child: Text(item["product"] ?? "")),
-                        if (selectedColumns["ロット"]!)
-                          Expanded(child: Text(item["lot"] ?? "")),
-                      ],
+                      children: columnOrder
+                          .where((key) => selectedColumns[key] == true)
+                          .map((key) {
+                        String value = '';
+                        switch (key) {
+                          case 'RFID':
+                            value = dataList[index]['rfid'] ?? '';
+                            return SizedBox(
+                              width: 50,
+                              child: Text(value, textAlign: TextAlign.center),
+                            );
+                          case '品番':
+                            value = dataList[index]['product'] ?? '';
+                            return SizedBox(
+                              width: 100,
+                              child: Text(value, textAlign: TextAlign.center),
+                            );
+                          case 'ロット':
+                            value = dataList[index]['lot'] ?? '';
+                            return SizedBox(
+                              width: 180,
+                              child: Text(value, textAlign: TextAlign.center),
+                            );
+                          default:
+                            return Container();
+                        }
+                      }).toList(),
                     ),
                   ),
                 );
@@ -268,7 +320,7 @@ class _QrcodePage extends State<QrcodePage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('タグ数：$tagCount', style: const TextStyle(fontSize: 16)),
+                Text('タグ数：$tagCount', style: const TextStyle(fontSize: 16,color: AppTheme.textColor)),
                 SizedBox(
                   width: 170,
                   height: 50,
@@ -300,5 +352,51 @@ class _QrcodePage extends State<QrcodePage> {
       ),
     );
   }
-}
 
+  void saveDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            "確認",
+            textAlign: TextAlign.center,
+            style: AppTheme.confirmDialogTheme.titleTextStyle,
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(bottom: 10.0),
+            child: Text(
+              "リストを保存しました。",
+              textAlign: TextAlign.center,
+              style: AppTheme.confirmDialogTheme.contentTextStyle,
+            ),
+          ),
+          actions: [
+            Align(
+              alignment: Alignment.center,
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: AppTheme.confirmDialogButtonColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    side: BorderSide(
+                        color: AppTheme.confirmDialogBorderColor, width: 2),
+                  ),
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  "OK",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
