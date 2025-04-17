@@ -34,7 +34,7 @@ class _LoadingPage extends State<LoadingPage>
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
 
-  // RFIDの結果情報を格納するためのリストとStreamからの受信用変数
+  // RFIDの重複していないタグ情報を格納するためのリストとStreamからの受信用変数
   final Set<String> tagList = {};
   late StreamSubscription<String>? subscription;
 
@@ -109,22 +109,26 @@ class _LoadingPage extends State<LoadingPage>
             epcList.add({"No": (epcList.length + 1).toString(),
               "Data": epc,
               "種別": "",
-              "回数": "0",
+              "回数": "1",
             });
           });
         }
-        // 重複している場合は回数情報のみ更新
+        // 重複している場合
         else {
-          setState(() {
-            // epcList内の該当行を取得し、回数情報をインクリメント
-            for (var item in epcList) {
-              if (item["Data"] == epc) {
-                int cnt = int.tryParse(item["回数"]) ?? 0;
-                item["回数"] = (cnt + 1).toString();
-                break;
+          // 単一読み込み（クリアボタン押下せず読んでいる）場合は情報更新無し
+          // 連続読み込みは回数のみ情報更新
+          if(!isNoDoubleRead) {
+            setState(() {
+              // epcList内の該当行を取得し、回数情報をインクリメント
+              for (var item in epcList) {
+                if (item["Data"] == epc) {
+                  int cnt = int.tryParse(item["回数"]) ?? 1;
+                  item["回数"] = (cnt + 1).toString();
+                  break;
+                }
               }
-            }
-          });
+            });
+          }
         }
 
         // カラム初期化目的で呼び出し
@@ -141,13 +145,22 @@ class _LoadingPage extends State<LoadingPage>
     bool ret;
     // 読み取りフラグの状態により呼び出し切り替え
     if (!isReading) {
-      ret = await WrapperDeviceLib.startRFIDScan();
+      // 二度読み禁止フラグの有効時は単一読み取り、無効時は連続読み取り
+      if(isNoDoubleRead) {
+        ret = await WrapperDeviceLib.startRFIDScanOnce();
+      } else {
+        ret = await WrapperDeviceLib.startRFIDScan();
+      }
     } else {
       ret = await WrapperDeviceLib.stopRFIDScan();
     }
-    // 成功時のみボタン切り替え処理を実行
-    if (ret) {
-      toggleReading();
+
+    // 単一読み取りの停止処理はなさそうなので連続読み取り系のみトグルの変更を行う
+    if(!isNoDoubleRead) {
+      // 成功時のみボタン切り替え処理を実行
+      if (ret) {
+        toggleReading();
+      }
     }
   }
 

@@ -1,19 +1,16 @@
 package com.example.tagsnap
-import android.os.Message
-import android.os.Handler
-import android.os.Looper
+
+// デバッグ用log出力
+import android.util.Log
 import com.rscja.deviceapi.RFIDWithUHFUART
-import com.rscja.deviceapi.entity.UHFTAGInfo
 import com.rscja.deviceapi.entity.InventoryParameter
+import com.rscja.deviceapi.entity.UHFTAGInfo
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
-
-// デバッグ用log出力
-import android.util.Log
 
 class MainActivity : FlutterActivity() {
 
@@ -48,6 +45,11 @@ class MainActivity : FlutterActivity() {
                 "stopRFIDScan" -> {
                     stopRFIDScanInternal()
                     result.success(true)
+                }
+
+                // 読み取り開始（単一読み取り）
+                "startRFIDScanOnce" -> {
+                    result.success(startRFIDScanOnce())
                 }
 
                 // 終了処理
@@ -86,8 +88,8 @@ class MainActivity : FlutterActivity() {
         if (!isInit) return false
 
         rfid.setInventoryCallback(object : IUHFInventoryCallback {
-            override fun callback(uhftagInfo: UHFTAGInfo) {
-                val epc = uhftagInfo.getEPC()
+            override fun callback(uhfTagInfo: UHFTAGInfo) {
+                val epc = uhfTagInfo.getEPC()
                 // flutter側へepc情報を通知
                 // flutterの制約によりメインスレッドで必ず返さないといけない
                 runOnUiThread {
@@ -119,9 +121,21 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // RFIDの単一読み取り処理
+    private fun startRFIDScanOnce() {
+        val uhfTagInfo = rfid.inventorySingleTag()
+        val epc = uhfTagInfo.getEPC()
+        runOnUiThread {
+            eventSink?.success(epc)
+            // デバッグ用ログ
+            Log.d("Kotlin:MainActivity", "epc情報送信：$epc")
+        }
+    }
+
     // RFIDの終了処理
     private fun termRFID() {
         if (!isInit) {
+            rfid.setInventoryCallback(null)
             rfid.free()
             isInit = false
         }
