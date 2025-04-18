@@ -33,6 +33,9 @@ dependencies:
     sdk: flutter
   flutter_native_splash: ^2.0.3
   path_provider: ^2.1.5
+  flutter_file_dialog: ^3.0.2
+  csv: ^5.0.1
+  intl: ^0.18.1
   url_launcher: ^6.3.1
   #  url_launcher: ^6.1.5
 
@@ -111,10 +114,10 @@ flutter:
 #flutter pub get
 #flutter pub run flutter_launcher_icons:main
 #flutter_native_splash:
-#  color: "#000000"  # 背景色 (ユーザーの好みに合わせて)
+#  color: "#FFFFFF"  # 背景色 (ユーザーの好みに合わせて)
 #  android_12:
-#    image: assets/skyblueLogo_small.png  # Android 12 以降で使用する画像
-#    icon_background_color: "#000000"  # 背景色
+#    image: assets/assets_icon_image/TagSnap_02.png  # Android 12 以降で使用する画像
+#    icon_background_color: "#FFFFFF"  # 背景色
 #  android: true
 #  ios: true
 
