@@ -183,7 +183,7 @@ class _LoadingPage extends State<LoadingPage>
         // EPCタブでは Data と 回数 のみ表示
         selectedColumnsMap["EPC"] = {
           "EPC": true,
-          // "回数": true,
+          "回数": true,
         };
       } else if (type == "Bit") {
         bitList = newData;
@@ -254,10 +254,10 @@ class _LoadingPage extends State<LoadingPage>
       showCopyDialog();
     } else if (result == "search") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SearchPage()));
+          context, MaterialPageRoute(builder: (context) => SearchPage()));//（）に引数を持っていく。SearchPageでもうう。
     } else if (result == "led") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LedPage()));
+          context, MaterialPageRoute(builder: (context) => LedPage()));//（）に引数を持っていく。LEDPageでもらう。
     }
   }
 
@@ -419,14 +419,8 @@ class _LoadingPage extends State<LoadingPage>
     );
   }
 
-  // buildTabContentメソッド
-  Widget buildTabContent(String tabType) {
-    // タブ種別判定
-    final bool isEPCTab = (tabType == "EPC");
-    final List<Map<String, dynamic>> dataList = isEPCTab
-        ? epcList
-        : (tabType == "Bit" ? bitList : himodukeList);
-
+  //CSVデータを格納するだけのクラス
+  List<List<String>> DataListByTabType(String tabType){
     //初期化する
     final List<List<String>> csvData = [];
 
@@ -444,16 +438,16 @@ class _LoadingPage extends State<LoadingPage>
         e["管理番号"]?.toString()     ?? "",
       ]));
     }
-    // bool isEPCTab = (tabType == "EPC");
-    // List<Map<String, dynamic>> dataList;
-    // if (tabType == "EPC") {
-    //   dataList = epcList;
-    // } else if (tabType == "Bit") {
-    //   dataList = bitList;
-    // } else {
-    //   // Himoduke
-    //   dataList = himodukeList;
-    // }
+    return csvData;
+  }
+
+
+  // buildTabContentメソッド　　
+  Widget buildTabContent(String tabType) {
+    final bool isEPCTab = (tabType == "EPC");
+    final List<Map<String, dynamic>> dataList = isEPCTab
+        ? epcList
+        : (tabType == "Bit" ? bitList : himodukeList);
 
     // そのほか既存のロジック…
     var selectedColumns = selectedColumnsMap[tabType] ?? {};
@@ -594,9 +588,8 @@ class _LoadingPage extends State<LoadingPage>
 
                     if (isEPCTab) {
                       csvData.add(["EPC"]);
-
                       for (final item in epcList) {
-                        csvData.add([item["管理番号"]?.toString() ?? ""]);
+                        csvData.add([item["EPC"]?.toString() ?? ""]);
                       }
                     } else {
                       csvData.add(["No", "EPC", "種別", "管理番号"]);
@@ -613,7 +606,9 @@ class _LoadingPage extends State<LoadingPage>
                     // ここで既存の関数を呼び出すだけ！
                     await saveCsvWithPicker(context, csvData, "LoadingDate");
                   },
-                  child: Text('保存'),
+                  style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                  child: Text('保存',style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
                 )
               ),
             ],
@@ -715,6 +710,7 @@ class _LoadingPage extends State<LoadingPage>
     );
   }
 
+  //データ
   Future<void> saveCsvWithPicker(
     BuildContext context,
     List<List<String>> csvData,
@@ -725,11 +721,11 @@ class _LoadingPage extends State<LoadingPage>
     // バイナリ化
     final bytes = Uint8List.fromList(utf8.encode(csvString));
 
-    // 日付付きファイル名
+    // ☆頭文字は統一（Load***）+ 日付付きファイル名+☆秒数入れた方がいいかも、なんのデータ（EPCTabDate的な）かわかるようにしておく！！
     final now = DateTime.now();
     final fn =
-        "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.txt";
-    // "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.csv";
+        // "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.txt";
+    "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.csv";
 
     // ファイルピッカーを開く
     final params = SaveFileDialogParams(
