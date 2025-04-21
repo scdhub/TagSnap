@@ -1,24 +1,34 @@
 import 'dart:convert';
 import 'package:csv/csv.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import '../led_page/led_page.dart';
 import '../search_page/search_page.dart';
 import '../theme.dart';
 import 'package:tagsnap/common_method/wrapper_device_lib.dart';
+import 'package:path/path.dart' as p;
+import 'dart:io';
+
+
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
+
+
 
   @override
   State<StatefulWidget> createState() => _LoadingPage();
 }
 
+
 class _LoadingPage extends State<LoadingPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   bool isReading = false;
   bool isNoDoubleRead = false;
   late TabController _tabController;
@@ -34,6 +44,7 @@ class _LoadingPage extends State<LoadingPage>
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
 
+
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
 
@@ -41,15 +52,37 @@ class _LoadingPage extends State<LoadingPage>
   final Set<String> tagList = {};
   late StreamSubscription<String>? subscription;
 
+
+  Map<String, Map<String, String>> managementMap = {}; //管理用ファイルの情報を保持
+
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
 
-    // RFID関連の初期化
+    // 画面生成直後に、必ず管理CSVを再選択（forceImport=true）
+    _promptForCsv();
+
+    // RFID初期化
     initializeRFID();
 
+    // ヘッダー⇔リストのスクロール同期設定
+    _setupScrollSync();
+
+    // ライフサイクル監視
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+
+  //初回表示時に必ずCSV選択ダイアログを出す
+  Future<void> _promptForCsv() async {
+    await _managementCsv(forceImport: true);
+  }
+
+
     // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
+  void _setupScrollSync() {
     _headerScrollController.addListener(() {
       if (_listScrollController.hasClients &&
           _listScrollController.offset != _headerScrollController.offset) {
@@ -64,6 +97,7 @@ class _LoadingPage extends State<LoadingPage>
     });
   }
 
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -72,8 +106,27 @@ class _LoadingPage extends State<LoadingPage>
 
     WrapperDeviceLib.termRFID();
     subscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
     super.dispose();
   }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    print("アプリ状態: $state"); //
+    if (state == AppLifecycleState.paused) {
+      // アプリがバックグラウンドに移行したとき
+      stopReading(); // 読み取り処理を停止
+    }
+  }
+
+  void stopReading() async {
+    if (isReading) {
+      await WrapperDeviceLib.stopRFIDScan();
+      toggleReading(); // ボタンの状態を更新
+    }
+  }
+
 
   // RFID周りの初期化
   Future<void> initializeRFID() async {
@@ -83,32 +136,27 @@ class _LoadingPage extends State<LoadingPage>
     if (isInitRFID) {
       // ストリームの購読は読み取り開始より先にセット
       subscription = WrapperDeviceLib.epcStream.listen((epc) {
+        final info = managementMap[epc]; // ★ここで初めて マップから取得
         // データ受信時、epcListを直接編集しながらデータ蓄積を行う
         // 重複していないデータ受信時は新規追加
         if (!tagList.contains(epc)) {
-          setState(() {
-            // ユニークのタグ文字列管理用変数を更新
-            tagList.add(epc);
-            // epcListも行追加
-            // 種別をどうするか
-            epcList.add({
-              "No": (epcList.length + 1).toString(),
-              "EPC": epc,
-              "種別": "",
-              "管理番号": "",
-              "回数": "1",
-            });
-            // 紐付けリストにも追加
-            himodukeList.add({
-              "No": (epcList.length).toString(),
-              "EPC": epc,
-              "種別": "",
-              "管理番号": "",
-              "回数": "1",
-            });
-            updateData(epcList, "EPC");
-            updateData(himodukeList, "Himoduke");
+          tagList.add(epc);
+          epcList.add({
+            "No": (epcList.length + 1).toString(),
+            "EPC": epc,
+            "種別": info?["種別"] ?? "",
+            "管理番号": info?["管理番号"] ?? "",
+            "回数": "1",
           });
+          himodukeList.add({
+            "No": (epcList.length).toString(),
+            "EPC": epc,
+            "種別": info?["種別"] ?? "",
+            "管理番号": info?["管理番号"] ?? "",
+            "回数": "1",
+          });
+          updateData(epcList, "EPC");
+          updateData(himodukeList, "Himoduke");
         }
         // 重複している場合
         else {
@@ -140,24 +188,16 @@ class _LoadingPage extends State<LoadingPage>
   // 読み取り開始/停止処理
   Future<void> readRFIDStartStop() async {
     bool ret;
-    // 読み取りフラグの状態により呼び出し切り替え
     if (!isReading) {
-      // 二度読み禁止フラグの有効時は単一読み取り、無効時は連続読み取り
-      if (isNoDoubleRead) {
-        ret = await WrapperDeviceLib.startRFIDScanOnce();
-      } else {
-        ret = await WrapperDeviceLib.startRFIDScan();
-      }
+      ret = isNoDoubleRead
+          ? await WrapperDeviceLib.startRFIDScanOnce()
+          : await WrapperDeviceLib.startRFIDScan();
     } else {
       ret = await WrapperDeviceLib.stopRFIDScan();
     }
-
-    if (!isNoDoubleRead) {
-      if (ret) {
-        toggleReading();
-        // 状態更新を反映
-        setState(() {});
-      }
+    if (ret) {
+      toggleReading();
+      setState(() {});
     }
   }
 
@@ -199,41 +239,116 @@ class _LoadingPage extends State<LoadingPage>
           "EPC": true,
           "種別": true,
           "管理番号": true,
-          "回数": false,
+          "回数": true,
         };
       }
     });
   }
 
-  //   setState(() {
-  //     if (type == "EPC") {
-  //       epcList = newData;
-  //       selectedColumnsMap["EPC"] = {
-  //         "Data": true,
-  //         "回数": true,
-  //         "No": false,
-  //         "種別": false,
-  //         "管理番号": false,
-  //       };
-  //     } else if (type == "Bit") {
-  //       bitList = newData;
-  //     } else if (type == "Himoduke") {
-  //       himodukeList = newData;
-  //     }
-  //
-  //     // カラム選択初期化
-  //     if (newData.isNotEmpty) {
-  //       selectedColumnsMap[type] = {
-  //         for (var key in newData.first.keys) key: true,
-  //       };
-  //     }
-  //   });
-  // }
+  // CSV を選ばせてアプリ内にコピー／パスを返す
+  Future<String?> importCsv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result == null || result.files.single.path == null) {
+      return null;
+    }
+    final pickedPath = result.files.single.path!;
+
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final inventryDir = Directory(p.join(appDocDir.path, 'Inventry'));
+    if (!await inventryDir.exists()) {
+      await inventryDir.create(recursive: true);
+    }
+
+    final savePath = p.join(inventryDir.path, 'management.csv');
+    await File(pickedPath).copy(savePath);
+    return savePath;
+  }
+
+  // 2. 管理用 CSV 読み込みを forceImport フラグつきで改修
+  Future<void> _managementCsv({bool forceImport = false}) async {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final csvPath = p.join(appDocDir.path, 'Inventry/management.csv');
+
+    // ファイルが存在しない or 強制インポートなら選択ダイアログを出す
+    if (forceImport || !await File(csvPath).exists()) {
+      final selectedPath = await importCsv();
+      if (selectedPath == null) {
+        print("管理CSVの読み込みがキャンセルされました。");
+        return;
+      }
+    }
+
+    // final csvString = await File(csvPath).readAsString();
+    // final rows = const CsvToListConverter().convert(csvString, eol: '\n');
+    final csvString = await File(csvPath).readAsString();
+    final rows = const CsvToListConverter().convert(csvString, eol: '\n');
+
+    if (rows.length < 2) return;
+
+      //  managementMap.clear();
+      // for (var i = 1; i < rows.length; i++) {
+      //    final row = rows[i].map((c) => c.toString()).toList();
+      //    managementMap[row[1]] = {
+      //      "種別":    row[2],
+      //      "管理番号": row[3],
+      //   };
+      //  }
+
+    // 空白・改行を取り除いてからマップに詰める
+    managementMap.clear();
+    for (var i = 1; i < rows.length; i++) {
+      final trimmed = rows[i]
+          .map((c) => c.toString().trim())
+          .toList();
+      final epc = trimmed[1];
+      final type = trimmed[2];
+      final code = trimmed[3];
+      managementMap[epc] = {
+        "種別": type,
+        "管理番号": code,
+      };
+    }
+    print("管理用ファイル読み込み完了: ${managementMap.length} 件");
+  }
+
+
+
+  // epcList を更新したあと、必ず呼ぶ
+  void refreshHimoduke() {
+    himodukeList = epcList.map((e) {
+      final epc = e["EPC"] as String;
+      final info = managementMap[epc];
+      return {
+        "No": e["No"],
+        "EPC": epc,
+        "種別": info?["種別"] ?? "",
+        "管理番号": info?["管理番号"] ?? "",
+      };
+    }).toList();
+    // 表示用の selectedColumnsMap も更新
+    updateData(himodukeList, "Himoduke");
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<StreamSubscription<String>>(
+        'subscription', subscription));
+    properties.add(DiagnosticsProperty<StreamSubscription<String>>(
+        'subscription', subscription));
+  }
+
 
   // メニューを表示する関数
   void showPopupMenu(BuildContext context, Offset position, int index) async {
     final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    Overlay
+        .of(context)
+        .context
+        .findRenderObject() as RenderBox;
     final selectedEPC = epcList[index]["EPC"] ?? "";
 
     final result = await showMenu(
@@ -254,10 +369,12 @@ class _LoadingPage extends State<LoadingPage>
       showCopyDialog();
     } else if (result == "search") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => SearchPage()));//（）に引数を持っていく。SearchPageでもうう。
+          context, MaterialPageRoute(
+          builder: (context) => SearchPage())); //（）に引数を持っていく。SearchPageでもうう。
     } else if (result == "led") {
       Navigator.push(
-          context, MaterialPageRoute(builder: (context) => LedPage()));//（）に引数を持っていく。LEDPageでもらう。
+          context, MaterialPageRoute(
+          builder: (context) => LedPage())); //（）に引数を持っていく。LEDPageでもらう。
     }
   }
 
@@ -288,13 +405,13 @@ class _LoadingPage extends State<LoadingPage>
                           onPressed: () {
                             setState(() {
                               selectedColumns.updateAll(
-                                  (key, value) => false); // すべてのチェックボックスを解除
+                                      (key, value) => false); // すべてのチェックボックスを解除
                             });
                             setStateDialog(() {});
                           },
                           style: ElevatedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            backgroundColor: Colors.white24,
+                            backgroundColor: Color(0xFF5FD970)
                           ),
                           child: Text(
                             'クリア',
@@ -310,13 +427,13 @@ class _LoadingPage extends State<LoadingPage>
                           onPressed: () {
                             setState(() {
                               selectedColumns.updateAll(
-                                  (key, value) => true); // すべてのチェックボックスを選択
+                                      (key, value) => true); // すべてのチェックボックスを選択
                             });
                             setStateDialog(() {});
                           },
                           style: ElevatedButton.styleFrom(
                             foregroundColor: Colors.white,
-                            backgroundColor: Colors.white24,
+                            backgroundColor: Colors.blueAccent,
                           ),
                           child: Text(
                             'すべて選択',
@@ -330,7 +447,8 @@ class _LoadingPage extends State<LoadingPage>
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: selectedColumns.keys.map((key) {
+                children:
+                selectedColumns.keys.where((key) => key != "回数").map((key) {
                   return CheckboxListTile(
                     title: Text(key),
                     value: selectedColumns[key],
@@ -350,7 +468,7 @@ class _LoadingPage extends State<LoadingPage>
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white, // 文字を白
                       backgroundColor:
-                          AppTheme.confirmDialogButtonColor, // 背景色を青系
+                      AppTheme.confirmDialogButtonColor, // 背景色を青系
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8), // 角を少し丸くする
                         side: BorderSide(
@@ -366,7 +484,7 @@ class _LoadingPage extends State<LoadingPage>
                     child: Text(
                       "OK",
                       style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -378,64 +496,82 @@ class _LoadingPage extends State<LoadingPage>
     );
   }
 
-  Widget buildRow(
-    Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
-    Map<String, bool> selectedColumns, {
-    bool isHeader = false, // trueならヘッダー行
-    bool isSelected = false, // 選択状態（背景色を変える用）
-  }) {
+  Widget buildRow(Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
+      Map<String, bool> selectedColumns, {
+        bool isHeader = false, // trueならヘッダー行
+        bool isSelected = false, // 選択状態（背景色を変える用）
+      }) {
     final bgColor = isHeader
         ? Colors.grey.shade300
         : isSelected
-            ? Colors.lightBlueAccent.withOpacity(0.3)
-            : Colors.white;
+        ? Colors.lightBlueAccent.withOpacity(0.3)
+        : Colors.white;
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(
-          bottom:
-              BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
+          bottom: BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
         ),
       ),
       child: Row(
         children: selectedColumns.entries
             .where((entry) => entry.value)
-            .map((entry) => Container(
-                  width: 100,
-                  alignment: Alignment.center,
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    isHeader
-                        ? entry.key
-                        : (rowData?[entry.key]?.toString() ?? ""),
-                    style: isHeader
-                        ? TextStyle(fontWeight: FontWeight.bold)
-                        : null,
-                    textAlign: TextAlign.center,
-                  ),
-                ))
-            .toList(),
+            .map((entry) {
+          // "回数"が表示されるように追加
+          if (entry.key == "回数" && !isHeader) {
+            return Container(
+              width: 100, // 1セルの横幅
+              alignment: Alignment.center,
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                isHeader
+                    ? entry.key
+                    : (rowData?[entry.key]?.toString() ?? ""), // "回数"列のデータ
+                style: isHeader
+                    ? TextStyle(fontWeight: FontWeight.bold)
+                    : null,
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
+          return Container(
+            width: 100, // 1セルの横幅
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              isHeader
+                  ? entry.key
+                  : (rowData?[entry.key]?.toString() ?? ""),
+              style: isHeader
+                  ? TextStyle(fontWeight: FontWeight.bold)
+                  : null,
+              textAlign: TextAlign.center,
+            ),
+          );
+        }).toList(),
       ),
     );
-  }
+    }
 
   //CSVデータを格納するだけのクラス
-  List<List<String>> DataListByTabType(String tabType){
+  List<List<String>> DataListByTabType(String tabType) {
     //初期化する
     final List<List<String>> csvData = [];
 
     if (tabType == "EPC") {
       csvData.add(["EPC"]);
-      csvData.addAll(epcList.map((e) => [
+      csvData.addAll(epcList.map((e) =>
+      [
         e["EPC"]?.toString() ?? ""
       ]));
     } else {
       csvData.add(["No", "EPC", "種別", "管理番号"]);
-      csvData.addAll(himodukeList.map((e) => [
-        e["No"]?.toString()       ?? "",
+      csvData.addAll(himodukeList.map((e) =>
+      [
+        e["No"]?.toString() ?? "",
         e["EPC"]?.toString() ?? "",
-        e["種別"]?.toString()     ?? "",
-        e["管理番号"]?.toString()     ?? "",
+        e["種別"]?.toString() ?? "",
+        e["管理番号"]?.toString() ?? "",
       ]));
     }
     return csvData;
@@ -452,12 +588,17 @@ class _LoadingPage extends State<LoadingPage>
     // そのほか既存のロジック…
     var selectedColumns = selectedColumnsMap[tabType] ?? {};
     int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
-    final double screenWidth = MediaQuery.of(context).size.width;
+    final double screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
     final int columnCount =
-        selectedColumns.entries.where((entry) => entry.value).length;
+        selectedColumns.entries
+            .where((entry) => entry.value)
+            .length;
     final double calculatedWidth = columnCount * 100.0;
     final double finalWidth =
-        calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
+    calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
 
     return Column(
       children: [
@@ -500,7 +641,8 @@ class _LoadingPage extends State<LoadingPage>
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orangeAccent),
                 onPressed: isEPCTab ? null : () => selectionDialog(tabType),
-                child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
+                child: Text(
+                    '表示項目選択', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -569,7 +711,7 @@ class _LoadingPage extends State<LoadingPage>
                   onPressed: readRFIDStartStop,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                    isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
                   ),
                   child: Text(
                     isReading ? '停止' : '読込み開始',
@@ -580,36 +722,37 @@ class _LoadingPage extends State<LoadingPage>
 
               // 保存ボタン
               SizedBox(
-                width: 60,
-                height: 40,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    List<List<String>> csvData = [];
+                  width: 60,
+                  height: 40,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      List<List<String>> csvData = [];
 
-                    if (isEPCTab) {
-                      csvData.add(["EPC"]);
-                      for (final item in epcList) {
-                        csvData.add([item["EPC"]?.toString() ?? ""]);
-                      }
-                    } else {
-                      csvData.add(["No", "EPC", "種別", "管理番号"]);
+                      if (isEPCTab) {
+                        csvData.add(["EPC"]);
+                        for (final item in epcList) {
+                          csvData.add([item["EPC"]?.toString() ?? ""]);
+                        }
+                      } else {
+                        csvData.add(["No", "EPC", "種別", "管理番号"]);
 
-                      for (final item in himodukeList) {
-                        csvData.add([
-                          item["No"]?.toString() ?? "",
-                          item["EPC"]?.toString() ?? "",
-                          item["種別"]?.toString() ?? "",
-                          item["管理番号"]?.toString() ?? "",
-                        ]);
+                        for (final item in himodukeList) {
+                          csvData.add([
+                            item["No"]?.toString() ?? "",
+                            item["EPC"]?.toString() ?? "",
+                            item["種別"]?.toString() ?? "",
+                            item["管理番号"]?.toString() ?? "",
+                          ]);
+                        }
                       }
-                    }
-                    // ここで既存の関数を呼び出すだけ！
-                    await saveCsvWithPicker(context, csvData, "LoadingDate");
-                  },
-                  style:
-                  ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                  child: Text('保存',style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
-                )
+                      // ここで既存の関数を呼び出すだけ！
+                      await saveCsvWithPicker(context, csvData, "LoadingDate");
+                    },
+                    style:
+                    ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                    child: Text('保存', style: TextStyle(
+                        color: Colors.blueAccent, fontSize: 12)),
+                  )
               ),
             ],
           ),
@@ -617,11 +760,6 @@ class _LoadingPage extends State<LoadingPage>
       ],
     );
   }
-
-  // List<Map<String, String>> himodukeData = [
-  //   {"No": "1", "EPC": "EPC 2001", "種別": "Type C", "回数": "1"},
-  //   {"No": "2", "EPC": "EPC 2002", "種別": "Type A", "回数": "2"},
-  // ];
 
   @override
   Widget build(BuildContext context) {
@@ -644,7 +782,11 @@ class _LoadingPage extends State<LoadingPage>
         children: [
           TabBar(
             controller: _tabController,
-            tabs: [Tab(text: 'EPC'), Tab(text: 'ビット割付'), Tab(text: '紐付け')],
+            tabs: [
+              Tab(text: 'EPC'),
+              Tab(text: 'ビット割付'),
+              Tab(text: '紐付け')
+            ],
           ),
           Expanded(
             child: TabBarView(
@@ -710,39 +852,82 @@ class _LoadingPage extends State<LoadingPage>
     );
   }
 
-  //データ
-  Future<void> saveCsvWithPicker(
-    BuildContext context,
-    List<List<String>> csvData,
-    String defaultFileName,
-  ) async {
-    // CSV文字列化
+//保存処理機能
+  Future<void> saveCsvWithPicker(BuildContext context,
+      List<List<String>> csvData,
+      defaultFileName,) async {
     final csvString = const ListToCsvConverter().convert(csvData);
-    // バイナリ化
     final bytes = Uint8List.fromList(utf8.encode(csvString));
-
-    // ☆頭文字は統一（Load***）+ 日付付きファイル名+☆秒数入れた方がいいかも、なんのデータ（EPCTabDate的な）かわかるようにしておく！！
     final now = DateTime.now();
-    final fn =
-        // "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.txt";
-    "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.csv";
+    final fn = "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(
+        now)}.csv";
 
-    // ファイルピッカーを開く
+    // 一時ディレクトリに保存
+    final dir = await getTemporaryDirectory();
+    final file = File("${dir.path}/$fn");
+    await file.writeAsBytes(bytes);
+
+    // ファイル保存ダイアログを表示
     final params = SaveFileDialogParams(
-      data: bytes,
+      sourceFilePath: file.path,
       fileName: fn,
-      mimeTypesFilter: ['text/plain', 'text/csv'],
     );
 
     final savedPath = await FlutterFileDialog.saveFile(params: params);
+
     if (savedPath != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存しました:\n$savedPath')),
-      );
+      lodinginfoSaveDialog(); // ←ここで表示！
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('保存をキャンセルしました')),
-      );
+      print("保存キャンセルまたは失敗");
     }
+  }
+
+  void lodinginfoSaveDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            "確認",
+            textAlign: TextAlign.center, // タイトルを中央揃え
+            style: AppTheme.confirmDialogTheme.titleTextStyle,
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+            child: Text(
+              "リストを保存しました。",
+              textAlign: TextAlign.center, // コンテンツを中央揃え
+              style: AppTheme.confirmDialogTheme.contentTextStyle,
+            ),
+          ),
+          actions: [
+            Align(
+              alignment: Alignment.center, // OKボタンを真ん中に配置
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white, // 文字を白
+                  backgroundColor: AppTheme.confirmDialogButtonColor, // 背景色を青系
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+                    side: BorderSide(
+                        color: AppTheme.confirmDialogBorderColor,
+                        width: 2), // 明るい枠線
+                  ),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 10), // 余白を適切に
+                ),
+                onPressed: () {
+                  Navigator.pop(context); // ダイアログを閉じる
+                },
+                child: Text(
+                  "OK",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
