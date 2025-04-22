@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:csv/csv.dart';
-import 'package:file_picker/file_picker.dart';
+// import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,26 +9,26 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:async';
 import '../led_page/led_page.dart';
+import '../main.dart';// インポートして自動停止ボタンを切り替える
 import '../search_page/search_page.dart';
 import '../theme.dart';
 import 'package:tagsnap/common_method/wrapper_device_lib.dart';
-import 'package:path/path.dart' as p;
+// import 'package:path/path.dart' as p;
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
 
-
-
   @override
-  State<StatefulWidget> createState() => _LoadingPage();
+  State<StatefulWidget> createState() => _LoadingPageState();
 }
 
 
-class _LoadingPage extends State<LoadingPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+class _LoadingPageState extends State<LoadingPage>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
   bool isReading = false;
   bool isNoDoubleRead = false;
   late TabController _tabController;
@@ -45,6 +45,8 @@ class _LoadingPage extends State<LoadingPage>
   final ScrollController _listScrollController = ScrollController();
 
 
+
+
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
 
@@ -52,36 +54,77 @@ class _LoadingPage extends State<LoadingPage>
   final Set<String> tagList = {};
   late StreamSubscription<String>? subscription;
 
-
-  Map<String, Map<String, String>> managementMap = {}; //管理用ファイルの情報を保持
+  // 設定画面で選んだ CSV ファイルのパスから読み込むマップ
+  Map<String, Map<String, String>> managementMap = {};
 
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-
-    // 画面生成直後に、必ず管理CSVを再選択（forceImport=true）
-    _promptForCsv();
-
-    // RFID初期化
-    initializeRFID();
-
-    // ヘッダー⇔リストのスクロール同期設定
-    _setupScrollSync();
-
-    // ライフサイクル監視
     WidgetsBinding.instance.addObserver(this);
+
+    _tabController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        if (_tabController.indexIsChanging) stopReading();
+      });
+
+    _setupScrollSync();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadCsvMapping();
+      setState(() {});
+    });
+    initializeRFID();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
 
-  //初回表示時に必ずCSV選択ダイアログを出す
-  Future<void> _promptForCsv() async {
-    await _managementCsv(forceImport: true);
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
+    routeObserver.unsubscribe(this);
+    _tabController.dispose();
+    _headerScrollController.dispose();
+    _listScrollController.dispose();
+
+    WrapperDeviceLib.termRFID();
+    subscription?.cancel();
+
+    super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    debugPrint('★★ didPushNext() called ★★');
+    // 新しい画面が押下されたら自動停止
+    stopReading();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    print("アプリ状態: $state"); //
+    if (state == AppLifecycleState.paused) {
+      // アプリがバックグラウンドに移行したとき
+      stopReading(); // 読み取り処理を停止
+    }
+  }
+
+  void stopReading() async {
+    debugPrint('★★ stopReading() called. isReading=$isReading');
+    if (isReading) {
+      await WrapperDeviceLib.stopRFIDScan();
+      toggleReading(); // ボタンの状態を更新
+    }
   }
 
 
-    // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
+
+  // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
   void _setupScrollSync() {
     _headerScrollController.addListener(() {
       if (_listScrollController.hasClients &&
@@ -97,35 +140,6 @@ class _LoadingPage extends State<LoadingPage>
     });
   }
 
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _headerScrollController.dispose();
-    _listScrollController.dispose();
-
-    WrapperDeviceLib.termRFID();
-    subscription?.cancel();
-    WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
-    print("アプリ状態: $state"); //
-    if (state == AppLifecycleState.paused) {
-      // アプリがバックグラウンドに移行したとき
-      stopReading(); // 読み取り処理を停止
-    }
-  }
-
-  void stopReading() async {
-    if (isReading) {
-      await WrapperDeviceLib.stopRFIDScan();
-      toggleReading(); // ボタンの状態を更新
-    }
-  }
 
 
   // RFID周りの初期化
@@ -245,75 +259,28 @@ class _LoadingPage extends State<LoadingPage>
     });
   }
 
-  // CSV を選ばせてアプリ内にコピー／パスを返す
-  Future<String?> importCsv() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
-    );
-    if (result == null || result.files.single.path == null) {
-      return null;
-    }
-    final pickedPath = result.files.single.path!;
-
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final inventryDir = Directory(p.join(appDocDir.path, 'Inventry'));
-    if (!await inventryDir.exists()) {
-      await inventryDir.create(recursive: true);
-    }
-
-    final savePath = p.join(inventryDir.path, 'management.csv');
-    await File(pickedPath).copy(savePath);
-    return savePath;
-  }
-
-  // 2. 管理用 CSV 読み込みを forceImport フラグつきで改修
-  Future<void> _managementCsv({bool forceImport = false}) async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final csvPath = p.join(appDocDir.path, 'Inventry/management.csv');
-
-    // ファイルが存在しない or 強制インポートなら選択ダイアログを出す
-    if (forceImport || !await File(csvPath).exists()) {
-      final selectedPath = await importCsv();
-      if (selectedPath == null) {
-        print("管理CSVの読み込みがキャンセルされました。");
-        return;
+  /// 管理用 CSV 読み込み
+  Future<void> _loadCsvMapping() async {
+    final prefs = await SharedPreferences.getInstance();
+    final csvPath = prefs.getString('managementCsvPath');
+    if (csvPath != null && await File(csvPath).exists()) {
+      final content = await File(csvPath).readAsString();
+      final rows = const CsvToListConverter(
+        eol: '\n',
+        shouldParseNumbers: false,
+      ).convert(content);
+      if (rows.length < 2) return;
+      managementMap.clear();
+      for (var i = 1; i < rows.length; i++) {
+        final cols = rows[i].map((c) => c.toString().trim()).toList();
+        managementMap[cols[1]] = {
+          '種別': cols[2],
+          '管理番号': cols[3],
+        };
       }
+      print('管理CSV 読み込み完了: ${managementMap.length} 件');
     }
-
-    // final csvString = await File(csvPath).readAsString();
-    // final rows = const CsvToListConverter().convert(csvString, eol: '\n');
-    final csvString = await File(csvPath).readAsString();
-    final rows = const CsvToListConverter().convert(csvString, eol: '\n');
-
-    if (rows.length < 2) return;
-
-      //  managementMap.clear();
-      // for (var i = 1; i < rows.length; i++) {
-      //    final row = rows[i].map((c) => c.toString()).toList();
-      //    managementMap[row[1]] = {
-      //      "種別":    row[2],
-      //      "管理番号": row[3],
-      //   };
-      //  }
-
-    // 空白・改行を取り除いてからマップに詰める
-    managementMap.clear();
-    for (var i = 1; i < rows.length; i++) {
-      final trimmed = rows[i]
-          .map((c) => c.toString().trim())
-          .toList();
-      final epc = trimmed[1];
-      final type = trimmed[2];
-      final code = trimmed[3];
-      managementMap[epc] = {
-        "種別": type,
-        "管理番号": code,
-      };
-    }
-    print("管理用ファイル読み込み完了: ${managementMap.length} 件");
   }
-
 
 
   // epcList を更新したあと、必ず呼ぶ
@@ -763,7 +730,13 @@ class _LoadingPage extends State<LoadingPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    //ユーザーが Android の戻るボタンや AppBar 左矢印でポップする直前に確実にキャッチ
+    return WillPopScope(
+        onWillPop: () async {
+          stopReading();
+          return true; // pop を続行
+        },
+    child: Scaffold(
       appBar: AppBar(
         title: Text(
           '読込み',
@@ -800,6 +773,7 @@ class _LoadingPage extends State<LoadingPage>
           ),
         ],
       ),
+    ),
     );
   }
 

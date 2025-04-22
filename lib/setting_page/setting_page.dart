@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/beep_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/frequency_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/listselect_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/no_double_reading_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/reading_mode_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/rf_page.dart';
@@ -159,6 +160,9 @@ class _SettingPageState extends State<SettingPage> {
             break;
           case '設定保存':
             destination = SavePage();
+            break;
+          case '紐付け・在庫リスト選択':
+            destination = ListselectPage();
             break;
         }
 
