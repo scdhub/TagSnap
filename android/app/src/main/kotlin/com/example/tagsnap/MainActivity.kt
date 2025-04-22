@@ -1,7 +1,5 @@
 package com.example.tagsnap
 
-// デバッグ用log出力
-import android.util.Log
 import com.rscja.deviceapi.RFIDWithUHFUART
 import com.rscja.deviceapi.entity.InventoryParameter
 import com.rscja.deviceapi.entity.UHFTAGInfo
@@ -11,6 +9,11 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
+import android.os.Handler
+import android.os.Looper
+
+// デバッグ用log出力
+import android.util.Log
 
 class MainActivity : FlutterActivity() {
 
@@ -18,7 +21,12 @@ class MainActivity : FlutterActivity() {
     private var eventSink: EventChannel.EventSink? = null
     private var isInit = false
     private var isReading = false
-    private var rfid = RFIDWithUHFUART.getInstance()
+    private var rfid: RFIDWithUHFUART? = null
+
+    // 連続送信時のディレイ処理用
+    private var isSending = false
+    private var delaySendRFIFInfoTime = 3000L
+    private var latestTag: String? = null
 
     // Dartファイル側との通信を行うための共通文言
     private val channel = "com.example.tagsnap/DevChannel"
@@ -78,7 +86,7 @@ class MainActivity : FlutterActivity() {
     // RFIDの初期化処理
     private fun initRFID(): Boolean {
         rfid = RFIDWithUHFUART.getInstance()
-        isInit = rfid.init(this)
+        isInit = rfid?.init(this) ?: false
         return isInit
     }
 
@@ -87,15 +95,16 @@ class MainActivity : FlutterActivity() {
         //　初期化終わっていなかったら終了
         if (!isInit) return false
 
-        rfid.setInventoryCallback(object : IUHFInventoryCallback {
+        rfid?.setInventoryCallback(object : IUHFInventoryCallback {
             override fun callback(uhfTagInfo: UHFTAGInfo) {
                 val epc = uhfTagInfo.getEPC()
-                // flutter側へepc情報を通知
-                // flutterの制約によりメインスレッドで必ず返さないといけない
-                runOnUiThread {
-                    eventSink?.success(epc)
-                    // デバッグ用ログ
-                    Log.d("Kotlin:MainActivity", "epc情報送信：$epc")
+                // 最新受信情報を格納
+                latestTag = epc
+
+                // 送信処理が動いていない場合は呼び出し
+                if (!isSending) {
+                    isSending = true
+                    sendNextTagInfo()
                 }
             }
         })
@@ -103,7 +112,7 @@ class MainActivity : FlutterActivity() {
         val param = InventoryParameter()
         param.resultData = InventoryParameter.ResultData().setNeedPhase(false)
 
-        val started = rfid.startInventoryTag(param)
+        val started = rfid?.startInventoryTag(param) ?: false
 
         if (started) {
             isReading = true
@@ -113,18 +122,44 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // 連続送信時の数秒待機用
+    private fun sendNextTagInfo() {
+        Handler(Looper.getMainLooper()).postDelayed({
+            // 最後に受信したタグ情報をチェック
+            latestTag?.let {
+                // flutterの制約によりメインスレッドで必ず返さないといけない
+                runOnUiThread {
+                    // flutterへの情報送信
+                    eventSink?.success(it)
+                    // デバッグ用ログ
+                    Log.d("Kotlin:MainActivity", "epc情報送信：$it")
+                }
+            }
+
+            // 送信後の情報はクリア
+            latestTag = null
+
+            // もし受信が行われていたら再呼び出し、なかったら次の呼び出しまで停止
+            if (latestTag != null) {
+                sendNextTagInfo()
+            } else {
+                isSending = false
+            }
+        }, delaySendRFIFInfoTime)
+    }
+
     // RFIDの読み取り停止処理
     private fun stopRFIDScanInternal() {
         if (isReading) {
-            rfid.stopInventory()
+            rfid?.stopInventory()
             isReading = false
         }
     }
 
     // RFIDの単一読み取り処理
     private fun startRFIDScanOnce() {
-        val uhfTagInfo = rfid.inventorySingleTag()
-        val epc = uhfTagInfo.getEPC()
+        val uhfTagInfo = rfid?.inventorySingleTag()
+        val epc = uhfTagInfo?.getEPC()
         runOnUiThread {
             eventSink?.success(epc)
             // デバッグ用ログ
@@ -135,8 +170,8 @@ class MainActivity : FlutterActivity() {
     // RFIDの終了処理
     private fun termRFID() {
         if (!isInit) {
-            rfid.setInventoryCallback(null)
-            rfid.free()
+            rfid?.setInventoryCallback(null)
+            rfid?.free()
             isInit = false
         }
     }
