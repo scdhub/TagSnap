@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:csv/csv.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../common_method/wrapper_device_lib.dart';
 import '../led_page/led_page.dart';
@@ -28,6 +31,9 @@ class _SearchPageState extends State<SearchPage>
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
   int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
+  StreamSubscription<String>? subscription;
+  List<String> tagList = [];
+  late List<TextEditingController> _epcControllers;//EPCを入力欄に表示する
   // ヘッダーとリストのスクロール位置同期用の ScrollController
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
@@ -38,100 +44,39 @@ class _SearchPageState extends State<SearchPage>
   List<Map<String, dynamic>> epcList = []; // ← 読み込み後に上書きされる
   List<Map<String, dynamic>> himodukeList = []; // ← 読み込み後に上書きされる
 
+  // 設定画面で選んだ CSV ファイルのパスから読み込むマップ
+  Map<String, Map<String, String>> managementMap = {};
+
+  //EPCを入力欄に表示させる処理
+  Future<void> _onManualEpcChanged() async {
+    // 全て４文字埋まっているか
+    if (_epcControllers.every((c) => c.text.length == 4)) {
+      final entered = _epcControllers.map((c) => c.text).join();
+      final match = epcList.indexWhere((e) => e['EPC'] == entered);
+      if (match != -1) {
+        setState(() {
+          selectedIndex = match;
+        });
+        // 必要ならスクロール位置を合わせるなど
+      }
+    }
+  }
+
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    // 画面生成直後に、必ず管理CSVを再選択（forceImport=true）
-    _promptForCsv();
-
-    // ヘッダー⇔リストのスクロール同期設定
+    _epcControllers = List.generate(6, (_) => TextEditingController());
     _setupScrollSync();
 
-    // ライフサイクル監視
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  //初回表示時に必ずCSV選択ダイアログを出す
-  Future<void> _promptForCsv() async {
-    await _managementCsv(forceImport: true);
-  }
-  Future<void> _managementCsv({bool forceImport = false}) async {
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final csvPath = p.join(appDocDir.path, 'Inventry/management.csv');
-
-    if (forceImport || !await File(csvPath).exists()) {
-      final selectedPath = await _importCsv(); // ← 別メソッドとして呼び出し
-      if (selectedPath == null) {
-        print("管理CSVの読み込みがキャンセルされました。");
-        return;
-      }
-    }
-
-    final csvString = await File(csvPath).readAsString();
-    final lines = const LineSplitter().convert(csvString);
-    if (lines.isEmpty) return;
-
-    final header = lines.first.split(',');
-    final dataRows = lines.skip(1).map((line) => line.split(',')).toList();
-
-    setState(() {
-      epcList = dataRows.map((cols) => Map.fromIterables(header, cols)).toList();
-      print("読み込んだepcList: $epcList");
+    // フレーム後に設定からの CSV パスを読み込み
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _loadCsvMapping();
+      _initListsFromCsv();
+      setState(() {});
     });
-  }
-
-  Future<String?> _importCsv() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv'],
-    );
-    if (result == null || result.files.single.path == null) return null;
-
-    final pickedPath = result.files.single.path!;
-    final appDocDir = await getApplicationDocumentsDirectory();
-    final inventryDir = Directory(p.join(appDocDir.path, 'Inventry'));
-    if (!await inventryDir.exists()) await inventryDir.create(recursive: true);
-
-    final savePath = p.join(inventryDir.path, 'management.csv');
-    await File(pickedPath).copy(savePath);
-    return savePath;
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    _headerScrollController.dispose();
-    _listScrollController.dispose();
-
-
-    WrapperDeviceLib.termRFID();
-    WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
-    super.dispose();
-  }
-
-  // 初期設定
-  void setInitialSelectedColumns() {
-    if (epcList.isNotEmpty) {
-      final keys = epcList.first.keys;
-      selectedColumnsMap['EPC'] = {
-        for (var key in keys) key: (key == 'EPC') // EPCだけ true
-      };
-    }
-
-    if (himodukeList.isNotEmpty) {
-      final keys = himodukeList.first.keys;
-      selectedColumnsMap['Himoduke'] = {
-        for (var key in keys) key: true // 全部表示
-      };
-    }
-  }
-
-  void toggleReading() {
-    setState(() {
-      isReading = !isReading;
-    });
+    initializeRFID();
   }
 
   void _setupScrollSync() {
@@ -152,6 +97,145 @@ class _SearchPageState extends State<SearchPage>
       }
     });
   }
+
+  /// 管理用 CSV 読み込み
+  Future<void> _loadCsvMapping() async {
+    final prefs = await SharedPreferences.getInstance();
+    final csvPath = prefs.getString('managementCsvPath');
+    if (csvPath == null) return;
+    final file = File(csvPath);
+    if (!await file.exists()) return;
+
+    final content = await file.readAsString();
+    final rows = const CsvToListConverter(
+        eol: '\n', shouldParseNumbers: false)
+        .convert(content);
+
+    if (rows.length < 2) return;
+    // 1行目をヘッダ、2行目以降をデータ
+    managementMap.clear();
+    for (var i = 1; i < rows.length; i++) {
+      final cols = rows[i].map((c) => c.toString().trim()).toList();
+      // cols = [No., EPC, 種別, 管理番号, …]
+      managementMap[cols[1]] = {
+        '種別': cols[2],
+        '管理番号': cols[3],
+      };
+    }
+    print('管理CSV 読み込み完了: ${managementMap.length} 件');
+  }
+
+  Future<void> initializeRFID() async {
+    var isInitRFID = await WrapperDeviceLib.initRFID();
+
+    if (isInitRFID) {
+      subscription = WrapperDeviceLib.epcStream.listen((epc) {
+        final info = managementMap[epc]; // 管理CSVのデータから情報を取得
+
+        if (!tagList.contains(epc)) {
+          tagList.add(epc);
+          epcList.add({
+            "No": (epcList.length + 1).toString(),
+            "EPC": epc,
+            "種別": info?["種別"] ?? "",
+            "管理番号": info?["管理番号"] ?? "",
+            // "回数": "1",
+          });
+          himodukeList.add({
+            "No": (epcList.length).toString(),
+            "EPC": epc,
+            "種別": info?["種別"] ?? "",
+            "管理番号": info?["管理番号"] ?? "",
+            // "回数": "1",
+          });
+          updateData(epcList, "EPC");
+          updateData(himodukeList, "Himoduke");
+        }
+      });
+    }
+  }
+
+  // 外部データを受け取る関数
+  void updateData(List<Map<String, dynamic>> newData, String type) {
+    setState(() {
+      if (type == "EPC") {
+        epcList = newData;
+        // EPCタブでは Data と 回数 のみ表示
+        selectedColumnsMap["EPC"] = {
+          "EPC": true,
+          // "回数": true,
+        };
+      } else if (type == "Himoduke") {
+        himodukeList = newData;
+        // 紐付けタブでは No, Data, 種別, 管理番号 を表示
+        selectedColumnsMap["Himoduke"] = {
+          "No": true,
+          "EPC": true,
+          "種別": true,
+          "管理番号": true,
+          // "回数": true,
+        };
+      }
+    });
+  }
+
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _headerScrollController.dispose();
+    _listScrollController.dispose();
+    for (var c in _epcControllers) c.dispose();
+
+    subscription?.cancel();//メモリリーク防止
+    WrapperDeviceLib.termRFID();
+    WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
+    super.dispose();
+  }
+
+  /// CSV だけで一覧を初期化（スキャン前に全レコードを表示）
+  void _initListsFromCsv() {
+    epcList = [];
+    himodukeList = [];
+
+    int idx = 1;
+    managementMap.forEach((epc, info) {
+      epcList.add({
+        'No': idx.toString(),
+        'EPC': epc,
+        // '回数': '0',
+      });
+      himodukeList.add({
+        'No': idx.toString(),
+        'EPC': epc,
+        '種別': info['種別']!,
+        '管理番号': info['管理番号']!,
+        // '回数': '0',
+      });
+      idx++;
+    });
+
+    // 初期表示カラム
+    selectedColumnsMap['EPC'] = {
+      'EPC': true,
+      // '回数': true,
+    };
+    selectedColumnsMap['Himoduke'] = {
+      'No': true,
+      'EPC': true,
+      '種別': true,
+      '管理番号': true,
+      // '回数': true,
+    };
+  }
+
+
+  void toggleReading() {
+    setState(() {
+      isReading = !isReading;
+    });
+  }
+
 
 
   //タブを独立
@@ -426,9 +510,17 @@ class _SearchPageState extends State<SearchPage>
                   bool isSelected = (index == selectedIndex);
                   return GestureDetector(
                     onTap: () {
+                      final epc = epcList[index]['EPC'] as String;
+                      // 4文字ずつ切り出してコントローラに入れる
+                      for (var i = 0; i < 6; i++) {
+                        final start = i * 4;
+                        final end = (start + 4).clamp(0, epc.length);
+                        _epcControllers[i].text = (start < epc.length)
+                            ? epc.substring(start, end)
+                            : '';
+                      }
                       setState(() {
-                        selectedIndex =
-                        (selectedIndex == index) ? null : index;
+                        selectedIndex = index;
                       });
                     },
                     onLongPressStart: (details) {
@@ -560,19 +652,20 @@ class _SearchPageState extends State<SearchPage>
             ),
           ),
 
-          // ここに4つの入力欄を追加
+          // ここに6つの入力欄を追加
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 10), // 左右にちょっと余白
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(6, (index) {
+              children: List.generate(6, (i) {
                 return SizedBox(
                   width: MediaQuery
                       .of(context)
                       .size
                       .width * 0.15,
-                  height: 45, // 高さ50px
+                  height: 30, // 高さ50px
                   child: TextField(
+                    controller: _epcControllers[i],
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(
                           r'[0-9a-fA-F]'))
@@ -611,6 +704,7 @@ class _SearchPageState extends State<SearchPage>
                           horizontal: 5, vertical: 8), // 余白調整
                     ),
                     textAlign: TextAlign.center,
+                    onChanged: (_) => _onManualEpcChanged(),
                     // テキスト中央配置
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight
                         .bold,), // フォントサイズUP
@@ -619,6 +713,8 @@ class _SearchPageState extends State<SearchPage>
               }),
             ),
           ),
+          
+          
 
           TabBar(
             controller: _tabController,
@@ -690,3 +786,8 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 }
+
+
+
+
+
