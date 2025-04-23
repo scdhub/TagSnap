@@ -12,6 +12,7 @@ import '../led_page/led_page.dart';
 import '../search_page/search_page.dart';
 import '../theme.dart';
 import 'package:tagsnap/common_method/wrapper_device_lib.dart';
+import 'package:tagsnap/common_method/taginfo_data.dart';
 import 'package:path/path.dart' as p;
 import 'dart:io';
 
@@ -50,7 +51,7 @@ class _LoadingPage extends State<LoadingPage>
 
   // RFIDの重複していないタグ情報を格納するためのリストとStreamからの受信用変数
   final Set<String> tagList = {};
-  late StreamSubscription<String>? subscription;
+  late StreamSubscription<tagInfoData>? subscription;
 
 
   Map<String, Map<String, String>> managementMap = {}; //管理用ファイルの情報を保持
@@ -135,22 +136,22 @@ class _LoadingPage extends State<LoadingPage>
 
     if (isInitRFID) {
       // ストリームの購読は読み取り開始より先にセット
-      subscription = WrapperDeviceLib.epcStream.listen((epc) {
-        final info = managementMap[epc]; // ★ここで初めて マップから取得
+      subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
+        final info = managementMap[getTagInfo.epc]; // ★ここで初めて マップから取得
         // データ受信時、epcListを直接編集しながらデータ蓄積を行う
         // 重複していないデータ受信時は新規追加
-        if (!tagList.contains(epc)) {
-          tagList.add(epc);
+        if (!tagList.contains(getTagInfo.epc)) {
+          tagList.add(getTagInfo.epc);
           epcList.add({
             "No": (epcList.length + 1).toString(),
-            "EPC": epc,
+            "EPC": getTagInfo.epc,
             "種別": info?["種別"] ?? "",
             "管理番号": info?["管理番号"] ?? "",
             "回数": "1",
           });
           himodukeList.add({
             "No": (epcList.length).toString(),
-            "EPC": epc,
+            "EPC": getTagInfo.epc,
             "種別": info?["種別"] ?? "",
             "管理番号": info?["管理番号"] ?? "",
             "回数": "1",
@@ -166,7 +167,7 @@ class _LoadingPage extends State<LoadingPage>
             setState(() {
               // epcList内の該当行を取得し、回数情報をインクリメント
               for (var item in epcList) {
-                if (item["EPC"] == epc) {
+                if (item["EPC"] == getTagInfo.epc) {
                   int cnt = int.tryParse(item["回数"]) ?? 1;
                   item["回数"] = (cnt + 1).toString();
                   break;
@@ -335,9 +336,9 @@ class _LoadingPage extends State<LoadingPage>
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<StreamSubscription<String>>(
+    properties.add(DiagnosticsProperty<StreamSubscription<tagInfoData>>(
         'subscription', subscription));
-    properties.add(DiagnosticsProperty<StreamSubscription<String>>(
+    properties.add(DiagnosticsProperty<StreamSubscription<tagInfoData>>(
         'subscription', subscription));
   }
 

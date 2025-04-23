@@ -27,6 +27,7 @@ class MainActivity : FlutterActivity() {
     private var isSending = false
     private var delaySendRFIFInfoTime = 3000L
     private var latestTag: String? = null
+    private var latestTagInfo: Map<String, Any> = emptyMap()
 
     // Dartファイル側との通信を行うための共通文言
     private val channel = "com.example.tagsnap/DevChannel"
@@ -101,6 +102,36 @@ class MainActivity : FlutterActivity() {
                 // 最新受信情報を格納
                 latestTag = epc
 
+                // 情報として得られるものが不明確なため保留
+                // uhfTagInfo.getExtraData(String) // 引数がkey情報
+                // 戻り値がAPI内のクラスになるため無視
+                // uhfTagInfo.getChipInfo() // 戻り値はUHFTAGInfo.ChipInfo
+
+                // 格納前に成形が必要な情報を受ける
+                val EpcBytes: ByteArray = uhfTagInfo.getEpcBytes()
+                val tidBytes: ByteArray = uhfTagInfo.getTidBytes()
+                val userBytes: ByteArray = uhfTagInfo.getUserBytes()
+
+                // 格納情報をmapに入れる
+                latestTagInfo = mapOf(
+                    "epc" to uhfTagInfo.getEPC(),
+                    "ant" to uhfTagInfo.getAnt(),
+                    "count" to uhfTagInfo.getCount(),
+                    "epcBytes" to EpcBytes.toList(),
+                    "freqPoint" to uhfTagInfo.getFrequencyPoint(),
+                    "index" to uhfTagInfo.getIndex(),
+                    "pc" to uhfTagInfo.getPc(),
+                    "phase" to uhfTagInfo.getPhase(),
+                    "remain" to uhfTagInfo.getRemain(),
+                    "reserved" to uhfTagInfo.getReserved(),
+                    "rssi" to uhfTagInfo.getRssi(),
+                    "tid" to uhfTagInfo.getTid(),
+                    "tidBytes" to tidBytes.toList(),
+                    "timeStamp" to uhfTagInfo.getTimestamp(),
+                    "user" to uhfTagInfo.getUser(),
+                    "userBytes" to userBytes.toList()
+                )
+
                 // 送信処理が動いていない場合は呼び出し
                 if (!isSending) {
                     isSending = true
@@ -126,21 +157,22 @@ class MainActivity : FlutterActivity() {
     private fun sendNextTagInfo() {
         Handler(Looper.getMainLooper()).postDelayed({
             // 最後に受信したタグ情報をチェック
-            latestTag?.let {
+            if(latestTagInfo.isNotEmpty()) {
                 // flutterの制約によりメインスレッドで必ず返さないといけない
                 runOnUiThread {
                     // flutterへの情報送信
-                    eventSink?.success(it)
+                    eventSink?.success(latestTagInfo)
                     // デバッグ用ログ
-                    Log.d("Kotlin:MainActivity", "epc情報送信：$it")
+                    Log.d("Kotlin:MainActivity", "epc情報送信：$latestTag")
                 }
             }
 
             // 送信後の情報はクリア
             latestTag = null
+            latestTagInfo = emptyMap()
 
-            // もし受信が行われていたら再呼び出し、なかったら次の呼び出しまで停止
-            if (latestTag != null) {
+            // もしここに至るまで受信が行われていたら再呼び出し、なかったら次の呼び出しまで停止
+            if (latestTagInfo.isNotEmpty()) {
                 sendNextTagInfo()
             } else {
                 isSending = false

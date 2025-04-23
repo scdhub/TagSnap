@@ -1,4 +1,6 @@
 import 'package:flutter/services.dart';
+import 'package:tagsnap/common_method/taginfo_data.dart';
+
 
 // デバイス通信を行うための処理を隠ぺいするためのクラス
 class WrapperDeviceLib {
@@ -19,8 +21,14 @@ class WrapperDeviceLib {
   }
 
   // 読み取った情報の戻り値取得
-  static Stream<String> get epcStream {
-    return _devStream.receiveBroadcastStream().map((result) => result as String);
+  static Stream<tagInfoData> get tagInfoStream {
+    return _devStream.receiveBroadcastStream().map((result) {
+      if (result is Map) {
+        return tagInfoData.fromMap(Map<String, dynamic>.from(result));
+      } else {
+        throw Exception("Get Error : tagInfoStream");
+      }
+    });
   }
 
   // 読み取り停止
