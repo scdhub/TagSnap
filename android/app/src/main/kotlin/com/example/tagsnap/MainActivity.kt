@@ -11,6 +11,9 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.*
 import android.os.Handler
 import android.os.Looper
+import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
 
 // デバッグ用log出力
 import android.util.Log
@@ -32,6 +35,10 @@ class MainActivity : FlutterActivity() {
     // Dartファイル側との通信を行うための共通文言
     private val channel = "com.example.tagsnap/DevChannel"
     private val stream = "com.example.tagsnap/DevStream"
+
+    // ビープ音用変数
+    private val toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -101,36 +108,8 @@ class MainActivity : FlutterActivity() {
                 val epc = uhfTagInfo.getEPC()
                 // 最新受信情報を格納
                 latestTag = epc
-
-                // 情報として得られるものが不明確なため保留
-                // uhfTagInfo.getExtraData(String) // 引数がkey情報
-                // 戻り値がAPI内のクラスになるため無視
-                // uhfTagInfo.getChipInfo() // 戻り値はUHFTAGInfo.ChipInfo
-
-                // 格納前に成形が必要な情報を受ける
-                val EpcBytes: ByteArray = uhfTagInfo.getEpcBytes()
-                val tidBytes: ByteArray = uhfTagInfo.getTidBytes()
-                val userBytes: ByteArray = uhfTagInfo.getUserBytes()
-
-                // 格納情報をmapに入れる
-                latestTagInfo = mapOf(
-                    "epc" to uhfTagInfo.getEPC(),
-                    "ant" to uhfTagInfo.getAnt(),
-                    "count" to uhfTagInfo.getCount(),
-                    "epcBytes" to EpcBytes.toList(),
-                    "freqPoint" to uhfTagInfo.getFrequencyPoint(),
-                    "index" to uhfTagInfo.getIndex(),
-                    "pc" to uhfTagInfo.getPc(),
-                    "phase" to uhfTagInfo.getPhase(),
-                    "remain" to uhfTagInfo.getRemain(),
-                    "reserved" to uhfTagInfo.getReserved(),
-                    "rssi" to uhfTagInfo.getRssi(),
-                    "tid" to uhfTagInfo.getTid(),
-                    "tidBytes" to tidBytes.toList(),
-                    "timeStamp" to uhfTagInfo.getTimestamp(),
-                    "user" to uhfTagInfo.getUser(),
-                    "userBytes" to userBytes.toList()
-                )
+                // 受信した情報をMapとして変換
+                convertReceiveTagInfo(uhfTagInfo)
 
                 // 送信処理が動いていない場合は呼び出し
                 if (!isSending) {
@@ -156,16 +135,8 @@ class MainActivity : FlutterActivity() {
     // 連続送信時の数秒待機用
     private fun sendNextTagInfo() {
         Handler(Looper.getMainLooper()).postDelayed({
-            // 最後に受信したタグ情報をチェック
-            if(latestTagInfo.isNotEmpty()) {
-                // flutterの制約によりメインスレッドで必ず返さないといけない
-                runOnUiThread {
-                    // flutterへの情報送信
-                    eventSink?.success(latestTagInfo)
-                    // デバッグ用ログ
-                    Log.d("Kotlin:MainActivity", "epc情報送信：$latestTag")
-                }
-            }
+            // Flutter側へ送信
+            sendToFlutter()
 
             // 送信後の情報はクリア
             latestTag = null
@@ -190,12 +161,69 @@ class MainActivity : FlutterActivity() {
 
     // RFIDの単一読み取り処理
     private fun startRFIDScanOnce() {
-        val uhfTagInfo = rfid?.inventorySingleTag()
-        val epc = uhfTagInfo?.getEPC()
-        runOnUiThread {
-            eventSink?.success(epc)
-            // デバッグ用ログ
-            Log.d("Kotlin:MainActivity", "epc情報送信：$epc")
+        //　初期化終わっていなかったら終了
+        if (!isInit) return
+
+        // null非許容にするため一応rfidをチェック
+        rfid?.let {
+            // 単一読み取りを行う
+            val uhfTagInfo = it.inventorySingleTag()
+            // 受信した情報をMapとして変換
+            convertReceiveTagInfo(uhfTagInfo)
+            // Flutter側へ送信
+            sendToFlutter()
+        }
+    }
+
+    private fun convertReceiveTagInfo(rcvTagInfo: UHFTAGInfo) {
+
+        // 情報として得られるものが不明確なため保留
+        // uhfTagInfo.getExtraData(String) // 引数がkey情報
+        // 戻り値がAPI内のクラスになるため無視
+        // uhfTagInfo.getChipInfo() // 戻り値はUHFTAGInfo.ChipInfo
+
+        // 格納前に成形が必要な情報を受ける
+        val EpcBytes: ByteArray = rcvTagInfo.getEpcBytes()
+        val tidBytes: ByteArray = rcvTagInfo.getTidBytes()
+        val userBytes: ByteArray = rcvTagInfo.getUserBytes()
+
+        // 格納情報をmapに入れる
+        latestTagInfo = mapOf(
+            "epc" to rcvTagInfo.getEPC(),
+            "ant" to rcvTagInfo.getAnt(),
+            "count" to rcvTagInfo.getCount(),
+            "epcBytes" to EpcBytes.toList(),
+            "freqPoint" to rcvTagInfo.getFrequencyPoint(),
+            "index" to rcvTagInfo.getIndex(),
+            "pc" to rcvTagInfo.getPc(),
+            "phase" to rcvTagInfo.getPhase(),
+            "remain" to rcvTagInfo.getRemain(),
+            "reserved" to rcvTagInfo.getReserved(),
+            "rssi" to rcvTagInfo.getRssi(),
+            "tid" to rcvTagInfo.getTid(),
+            "tidBytes" to tidBytes.toList(),
+            "timeStamp" to rcvTagInfo.getTimestamp(),
+            "user" to rcvTagInfo.getUser(),
+            "userBytes" to userBytes.toList()
+        )
+    }
+
+    private fun sendToFlutter() {
+        // 最後に受信したタグ情報をチェック
+        if(latestTagInfo.isNotEmpty()) {
+            // 現在音量を取得
+            val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_NOTIFICATION)
+            // ミュートされていなかったらビープ音を鳴らす
+            if (currentVolume > 0) {
+                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+            }
+            // flutterの制約によりメインスレッドで必ず返さないといけない
+            runOnUiThread {
+                // flutterへの情報送信
+                eventSink?.success(latestTagInfo)
+                // デバッグ用ログ
+                Log.d("Kotlin:MainActivity", "epc情報送信：$latestTag")
+            }
         }
     }
 
