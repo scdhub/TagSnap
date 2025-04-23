@@ -158,7 +158,7 @@ class _LoadingPageState extends State<LoadingPage>
           tagList.add(getTagInfo.epc);
           epcList.add({
             "No": (epcList.length + 1).toString(),
-            "EPC": epc,
+            "EPC": getTagInfo.epc,
             "種別": info?["種別"] ?? "",
             "管理番号": info?["管理番号"] ?? "",
             "回数": "1",
@@ -733,11 +733,11 @@ class _LoadingPageState extends State<LoadingPage>
   Widget build(BuildContext context) {
     //ユーザーが Android の戻るボタンや AppBar 左矢印でポップする直前に確実にキャッチ
     return WillPopScope(
-      onWillPop: () async {
-        stopReading();
-        return true; // pop を続行
-      },
-      child: Scaffold(
+        onWillPop: () async {
+          stopReading();
+          return true; // pop を続行
+        },
+    child: Scaffold(
       appBar: AppBar(
         title: Text(
           '読込み',

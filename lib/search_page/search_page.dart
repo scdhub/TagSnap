@@ -12,6 +12,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../common_method/wrapper_device_lib.dart';
+import 'package:tagsnap/common_method/taginfo_data.dart';
 import '../led_page/led_page.dart';
 import '../theme.dart';
 import 'package:path/path.dart' as p;
@@ -30,8 +31,7 @@ class _SearchPageState extends State<SearchPage>
   bool isNoDoubleRead = false;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
-  int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
-  StreamSubscription<String>? subscription;
+  StreamSubscription<tagInfoData>? subscription;
   List<String> tagList = [];
   late List<TextEditingController> _epcControllers;//EPCを入力欄に表示する
   // ヘッダーとリストのスクロール位置同期用の ScrollController
@@ -129,21 +129,24 @@ class _SearchPageState extends State<SearchPage>
     var isInitRFID = await WrapperDeviceLib.initRFID();
 
     if (isInitRFID) {
-      subscription = WrapperDeviceLib.epcStream.listen((epc) {
-        final info = managementMap[epc]; // 管理CSVのデータから情報を取得
+      subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
+        final info = managementMap[getTagInfo.epc]; // 管理CSVのデータから情報を取得
 
-        if (!tagList.contains(epc)) {
-          tagList.add(epc);
+        if (!tagList.contains(getTagInfo.epc)) {
+          tagList.add(getTagInfo.epc);
+
           epcList.add({
             "No": (epcList.length + 1).toString(),
-            "EPC": epc,
+            "EPC": getTagInfo.epc,
             "種別": info?["種別"] ?? "",
             "管理番号": info?["管理番号"] ?? "",
+            // 電波強度としてUI表示する用に値を変換
+            "電波強度": ConvertRssiToPercent(getTagInfo.rssi),
             // "回数": "1",
           });
           himodukeList.add({
             "No": (epcList.length).toString(),
-            "EPC": epc,
+            "EPC": getTagInfo.epc,
             "種別": info?["種別"] ?? "",
             "管理番号": info?["管理番号"] ?? "",
             // "回数": "1",
@@ -275,6 +278,16 @@ class _SearchPageState extends State<SearchPage>
       Navigator.push(
           context, MaterialPageRoute(builder: (context) => LedPage()));
     }
+  }
+
+  // RSSI値を線形変換
+  int ConvertRssiToPercent(String setRssi){
+    // -100dBmが最小、-30dBmが最大になる
+    var dBmMin = -100;
+    var dBmMax = -30;
+    var tmp = int.parse(setRssi).clamp(dBmMin, dBmMax);
+
+    return (tmp - dBmMin) * 100 ~/ (dBmMax - dBmMin);
   }
 
 
@@ -454,6 +467,10 @@ class _SearchPageState extends State<SearchPage>
     final double finalWidth =
     calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
 
+    // 選択中EPCに紐づく電波強度の取得（選択がされていない場合は0固定）
+    var signalPrm = selectedIndex != null ?
+    epcList[selectedIndex!]['電波強度'] : 0;
+
     return Column(
       children: [
         // 上部の「書込み対象選択リスト」など
@@ -570,15 +587,15 @@ class _SearchPageState extends State<SearchPage>
                     ),
                   ),
                   Container(
-                    width: (signalStrength / 100) * MediaQuery
+                    width: (signalPrm / 100) * MediaQuery
                         .of(context)
                         .size
                         .width * 0.8, // 強度に応じて幅を変える
                     height: 20,
                     decoration: BoxDecoration(
-                      color: signalStrength < 30
+                      color: signalPrm < 30
                           ? Colors.red
-                          : signalStrength < 70
+                          : signalPrm < 70
                           ? Colors.yellow
                           : Colors.green, // 色の変化
                       borderRadius: BorderRadius.circular(10),
@@ -588,7 +605,7 @@ class _SearchPageState extends State<SearchPage>
               ),
             ),
             Text(
-              "$signalStrength%", // 強度の数値表示
+              "$signalPrm%", // 強度の数値表示
               style: TextStyle(fontSize: 16, color: Colors.white),
             ),
           ],
