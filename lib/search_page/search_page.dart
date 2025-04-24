@@ -11,8 +11,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../common_method/taginfo_data.dart';
 import '../common_method/wrapper_device_lib.dart';
-import 'package:tagsnap/common_method/taginfo_data.dart';
 import '../led_page/led_page.dart';
 import '../theme.dart';
 import 'package:path/path.dart' as p;
@@ -31,9 +31,11 @@ class _SearchPageState extends State<SearchPage>
   bool isNoDoubleRead = false;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
+  int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
   StreamSubscription<tagInfoData>? subscription;
   List<String> tagList = [];
-  late List<TextEditingController> _epcControllers;//EPCを入力欄に表示する
+  late List<TextEditingController> _epcControllers; //EPCを入力欄に表示する
+  double matchRate = 0.0; // 0.0 ～ 1.0
   // ヘッダーとリストのスクロール位置同期用の ScrollController
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
@@ -62,13 +64,13 @@ class _SearchPageState extends State<SearchPage>
     }
   }
 
-
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _epcControllers = List.generate(6, (_) => TextEditingController());
     _setupScrollSync();
+    _loadDummyData();
 
     // フレーム後に設定からの CSV パスを読み込み
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -79,21 +81,33 @@ class _SearchPageState extends State<SearchPage>
     initializeRFID();
   }
 
+  /// ダミーデータ読み込み
+  Future<void> _loadDummyData() async {
+    // CSV など実処理は後日
+    // managementMap: EPC のキー件数 10 件
+    managementMap = Map.fromIterables(
+      List.generate(10, (i) => 'EPC_${i + 1}'),
+      List.generate(10, (i) => {'種別': 'Type${i + 1}', '管理番号': 'ID${i + 1}'}),
+    );
+    // タグ読み取り: 例として 6 件読み取り
+    tagList = managementMap.keys.take(6).toList();
+
+    // マッチ率計算
+    matchRate = tagList.length / managementMap.length;
+    setState(() {});
+  }
+
   void _setupScrollSync() {
     _headerScrollController.addListener(() {
       if (_listScrollController.hasClients &&
-          _listScrollController.offset !=
-              _headerScrollController.offset) {
-        _listScrollController
-            .jumpTo(_headerScrollController.offset);
+          _listScrollController.offset != _headerScrollController.offset) {
+        _listScrollController.jumpTo(_headerScrollController.offset);
       }
     });
     _listScrollController.addListener(() {
       if (_headerScrollController.hasClients &&
-          _headerScrollController.offset !=
-              _listScrollController.offset) {
-        _headerScrollController
-            .jumpTo(_listScrollController.offset);
+          _headerScrollController.offset != _listScrollController.offset) {
+        _headerScrollController.jumpTo(_listScrollController.offset);
       }
     });
   }
@@ -107,8 +121,7 @@ class _SearchPageState extends State<SearchPage>
     if (!await file.exists()) return;
 
     final content = await file.readAsString();
-    final rows = const CsvToListConverter(
-        eol: '\n', shouldParseNumbers: false)
+    final rows = const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
         .convert(content);
 
     if (rows.length < 2) return;
@@ -134,7 +147,6 @@ class _SearchPageState extends State<SearchPage>
 
         if (!tagList.contains(getTagInfo.epc)) {
           tagList.add(getTagInfo.epc);
-
           epcList.add({
             "No": (epcList.length + 1).toString(),
             "EPC": getTagInfo.epc,
@@ -182,7 +194,6 @@ class _SearchPageState extends State<SearchPage>
     });
   }
 
-
   @override
   void dispose() {
     _tabController.dispose();
@@ -190,13 +201,13 @@ class _SearchPageState extends State<SearchPage>
     _listScrollController.dispose();
     for (var c in _epcControllers) c.dispose();
 
-    subscription?.cancel();//メモリリーク防止
+    subscription?.cancel(); //メモリリーク防止
     WrapperDeviceLib.termRFID();
     WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
     super.dispose();
   }
 
-  /// CSV だけで一覧を初期化（スキャン前に全レコードを表示）
+  //CSV だけで一覧を初期化（スキャン前に全レコードを表示）
   void _initListsFromCsv() {
     epcList = [];
     himodukeList = [];
@@ -232,14 +243,11 @@ class _SearchPageState extends State<SearchPage>
     };
   }
 
-
   void toggleReading() {
     setState(() {
       isReading = !isReading;
     });
   }
-
-
 
   //タブを独立
   Map<String, Map<String, bool>> selectedColumnsMap = {
@@ -247,16 +255,17 @@ class _SearchPageState extends State<SearchPage>
     "Himoduke": {},
   };
 
-
-
+  //電波強度の色ロジックを変数にまとめる
+  Color getMatchColor(double matchRate) {
+    if (matchRate < 0.3) return Colors.red;
+    if (matchRate < 0.7) return Colors.yellow;
+    return Colors.green;
+  }
 
   // メニューを表示する関数
   void showPopupMenu(BuildContext context, Offset position, int index) async {
     final RenderBox overlay =
-    Overlay
-        .of(context)
-        .context
-        .findRenderObject() as RenderBox;
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final selectedEPC = epcList[index]["EPC"] ?? "";
 
     final result = await showMenu(
@@ -297,6 +306,7 @@ class _SearchPageState extends State<SearchPage>
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
+            var selectedColumns = selectedColumnsMap[tabType]!;
             return AlertDialog(
               backgroundColor: Colors.white,
               title: Column(
@@ -317,8 +327,7 @@ class _SearchPageState extends State<SearchPage>
                           onPressed: () {
                             setState(() {
                               selectedColumns.updateAll(
-                                      (key,
-                                      value) => false); // すべてのチェックボックスを解除
+                                  (key, value) => false); // すべてのチェックボックスを解除
                             });
                             setStateDialog(() {});
                           },
@@ -339,8 +348,7 @@ class _SearchPageState extends State<SearchPage>
                           onPressed: () {
                             setState(() {
                               selectedColumns.updateAll(
-                                      (key,
-                                      value) => true); // すべてのチェックボックスを選択
+                                  (key, value) => true); // すべてのチェックボックスを選択
                             });
                             setStateDialog(() {});
                           },
@@ -380,7 +388,7 @@ class _SearchPageState extends State<SearchPage>
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white, // 文字を白
                       backgroundColor:
-                      AppTheme.confirmDialogButtonColor, // 背景色を青系
+                          AppTheme.confirmDialogButtonColor, // 背景色を青系
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8), // 角を少し丸くする
                         side: BorderSide(
@@ -396,7 +404,7 @@ class _SearchPageState extends State<SearchPage>
                     child: Text(
                       "OK",
                       style:
-                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -408,43 +416,44 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 
-
-  Widget buildRow(Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
-      Map<String, bool> selectedColumns, {
-        bool isHeader = false, // trueならヘッダー行
-        bool isSelected = false, // 選択状態（背景色を変える用）
-      }) {
+  Widget buildRow(
+    Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
+    Map<String, bool> selectedColumns, {
+    bool isHeader = false, // trueならヘッダー行
+    bool isSelected = false, // 選択状態（背景色を変える用）
+    double cellWidth = 100.0,
+  }) {
     final bgColor = isHeader
         ? Colors.grey.shade300
         : isSelected
-        ? Colors.lightBlueAccent.withOpacity(0.3)
-        : Colors.white;
+            ? Colors.lightBlueAccent.withOpacity(0.3)
+            : Colors.white;
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(
-          bottom: BorderSide(
-              color: isHeader ? Colors.grey : Colors.grey.shade300),
+          bottom:
+              BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
         ),
       ),
       child: Row(
-        children: selectedColumns.entries
-            .where((entry) => entry.value)
-            .map((entry) =>
-            Container(
-              width: 100,
-              alignment: Alignment.center,
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                isHeader
-                    ? entry.key
-                    : (rowData?[entry.key]?.toString() ?? ""),
-                style:
-                isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
-                textAlign: TextAlign.center,
-              ),
-            ))
-            .toList(),
+        children: selectedColumns.entries.where((e) => e.value).map((e) {
+          // 列キー e.key に応じて幅を切り替え
+          final width = (e.key == 'No')
+              ? 50.0 // No列だけ狭める
+              : cellWidth; // それ以外は従来どおり
+          return Container(
+            // width: 100,
+            width: width,
+            alignment: Alignment.center,
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Text(
+              isHeader ? e.key : (rowData?[e.key]?.toString() ?? ""),
+              style: isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
+              textAlign: TextAlign.center,
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -455,300 +464,292 @@ class _SearchPageState extends State<SearchPage>
     var selectedColumns = selectedColumnsMap[tabType] ?? {};
     int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
 
-    final double screenWidth = MediaQuery
-        .of(context)
-        .size
-        .width;
+    final double screenWidth = MediaQuery.of(context).size.width;
     final int columnCount =
-        selectedColumns.entries
-            .where((entry) => entry.value)
-            .length;
+        selectedColumns.entries.where((entry) => entry.value).length;
     final double calculatedWidth = columnCount * 100.0;
     final double finalWidth =
-    calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
+        calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
+    // EPCタブかつ列数が１（＝EPCだけ表示）のときだけ、この幅をセル幅として使う
+    final double cellWidth = (isEPCTab && columnCount == 1)
+        ? finalWidth // EPC文字列を丸ごと１セルに
+        : 100.0; // それ以外は従来どおり100px
 
     // 選択中EPCに紐づく電波強度の取得（選択がされていない場合は0固定）
     var signalPrm = selectedIndex != null ?
     epcList[selectedIndex!]['電波強度'] : 0;
 
-    return Column(
-      children: [
-        // 上部の「書込み対象選択リスト」など
-        Padding(
-          padding: EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            children: [
-              Expanded(
-                child: Center(
-                  child: Text(
-                    "探索対象リスト",
-                    style: TextStyle(fontSize: 15, color: Colors.white),
-                  ),
-                ),
-              ),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.only(right: 10),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orangeAccent),
-                    onPressed: isEPCTab ? null : () =>
-                        selectionDialog(tabType),
-                    child:
-                    Text('表示項目選択',
-                        style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        // ヘッダー部分
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          controller: _headerScrollController,
-          child: Container(
-            width: finalWidth,
-            child: buildRow(null, selectedColumns, isHeader: true),
-          ),
-        ),
-        // リスト部分
-        Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            controller: _listScrollController,
-            child: Container(
-              width: finalWidth,
-              height: 300.0,
-              child: ListView.builder(
-                itemCount: tagCount,
-                itemBuilder: (context, index) {
-                  bool isSelected = (index == selectedIndex);
-                  return GestureDetector(
-                    onTap: () {
-                      final epc = epcList[index]['EPC'] as String;
-                      // 4文字ずつ切り出してコントローラに入れる
-                      for (var i = 0; i < 6; i++) {
-                        final start = i * 4;
-                        final end = (start + 4).clamp(0, epc.length);
-                        _epcControllers[i].text = (start < epc.length)
-                            ? epc.substring(start, end)
-                            : '';
-                      }
-                      setState(() {
-                        selectedIndex = index;
-                      });
-                    },
-                    onLongPressStart: (details) {
-                      setState(() {
-                        selectedIndex = index;
-                        showPopupMenu(context, details.globalPosition, index);
-                      });
-                    },
-                    child: buildRow(
-                      dataList[index],
-                      selectedColumns,
-                      isSelected: isSelected,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-
-        Column(
+    return Column(children: [
+      // 上部の「書込み対象選択リスト」など
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Row(
           children: [
-            // 探索中のEPCを表示
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                selectedIndex != null
-                    ? "探索中のEPC：${epcList[selectedIndex!]['EPC']}"
-                    : "探索するEPCを選択してください",
-                style: TextStyle(fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
+            Expanded(
+              child: Center(
+                child: Text(
+                  "探索対象リスト",
+                  style: TextStyle(fontSize: 15, color: Colors.white),
+                ),
               ),
             ),
-
-            // 電波強度レベルゲージ
-            Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Stack(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300], // 背景（灰色）
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  Container(
-                    width: (signalPrm / 100) * MediaQuery
-                        .of(context)
-                        .size
-                        .width * 0.8, // 強度に応じて幅を変える
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: signalPrm < 30
-                          ? Colors.red
-                          : signalPrm < 70
-                          ? Colors.yellow
-                          : Colors.green, // 色の変化
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: EdgeInsets.only(right: 10),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orangeAccent),
+                  onPressed: isEPCTab ? null : () => selectionDialog(tabType),
+                  child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
+                ),
               ),
-            ),
-            Text(
-              "$signalPrm%", // 強度の数値表示
-              style: TextStyle(fontSize: 16, color: Colors.white),
             ),
           ],
         ),
+      ),
+      // ヘッダー部分
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        controller: _headerScrollController,
+        child: Container(
+          width: finalWidth,
+          child: buildRow(
+            null,
+            selectedColumns,
+            isHeader: true,
+            cellWidth: cellWidth,
+          ),
+        ),
+      ),
+      // リスト部分
+      Expanded(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _listScrollController,
+          child: Container(
+            width: finalWidth,
+            height: 300.0,
+            child: ListView.builder(
+              itemCount: tagCount,
+              itemBuilder: (context, index) {
+                bool isSelected = (index == selectedIndex);
 
+                return GestureDetector(
+                  onTap: () {
+                    final epc = epcList[index]['EPC'] as String;
+                    // 4文字ずつ切り出してコントローラに入れる
+                    for (var i = 0; i < 6; i++) {
+                      final start = i * 4;
+                      final end = (start + 4).clamp(0, epc.length);
+                      _epcControllers[i].text =
+                          (start < epc.length) ? epc.substring(start, end) : '';
+                    }
+                    setState(() {
+                      selectedIndex = index;
+                    });
+                  },
+                  onLongPressStart: (details) {
+                    setState(() {
+                      selectedIndex = index;
+                      showPopupMenu(context, details.globalPosition, index);
+                    });
+                  },
+                  child: buildRow(
+                    dataList[index],
+                    selectedColumns,
+                    isSelected: isSelected,
+                    cellWidth: cellWidth,
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
 
-        Container(
-          padding: EdgeInsets.symmetric(vertical: 20),
-          child: Center(
-            child: SizedBox(
-              width: 170,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: toggleReading,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor:
-                  isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: 8), // 余白縮小
+
+          Padding(
+            padding: EdgeInsets.symmetric(vertical: 4),
+            child: Text(
+              selectedIndex != null
+                  ? "探索中のRSSI"
+                  : "探索するEPCを選択してください",
+              style: TextStyle(
+                fontSize: 13, // 少し小さめに
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+          ),
+
+          // 電波強度バー（高さ調整）
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(10, (index) {
+              return Container(
+                margin: EdgeInsets.symmetric(horizontal: 1.5),
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: index < signalPrm* 10
+                      ? getMatchColor(signalPrm)
+                      : Colors.grey[300],
+                  borderRadius: BorderRadius.circular(3),
                 ),
-                child: Text(
-                  isReading ? '停止' : '点灯開始',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
+              );
+            }),
+          ),
+
+          SizedBox(height: 4), // スペース最小限
+          Text(
+            "${(signalPrm * 100).toStringAsFixed(0)}%",
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: getMatchColor(signalPrm),
+            ),
+          ),
+
+          // 探索開始ボタン（サイズ縮小）
+          Container(
+            padding: EdgeInsets.only(top: 10),
+            child: Center(
+              child: SizedBox(
+                width: 150,
+                height: 40, // 高さを小さく
+                child: ElevatedButton(
+                  onPressed: toggleReading,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                    isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                  ),
+                  child: Text(
+                    isReading ? '停止' : '探索開始',
+                    style: TextStyle(color: Colors.white, fontSize: 16),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      ),
+    ]);
   }
-
 
   //AppBarと
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('探索', style: TextStyle(
-        color: Color(0xFF84848F),
-        fontSize: 25,
-        fontWeight: FontWeight.bold,
-      ),
-      ),
+      appBar: AppBar(
+        title: Text(
+          '探索',
+          style: TextStyle(
+            color: Color(0xFF84848F),
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         centerTitle: true,
         backgroundColor: Colors.white,
         elevation: 0,
         toolbarHeight: 80,
       ),
-      body: Column(
-        children: [
-          // 書込み自動インクリメント設定
-          Padding(
-            padding: EdgeInsets.only(left: 10, bottom: 5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // 左側のテキスト
-                Text(
-                  "探索ID",
-                  style: TextStyle(fontSize: 18, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-
-          // ここに6つの入力欄を追加
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 10), // 左右にちょっと余白
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: List.generate(6, (i) {
-                return SizedBox(
-                  width: MediaQuery
-                      .of(context)
-                      .size
-                      .width * 0.15,
-                  height: 30, // 高さ50px
-                  child: TextField(
-                    controller: _epcControllers[i],
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(
-                          r'[0-9a-fA-F]'))
-                    ],
-
-                    maxLength: 4,
-                    // 最大8桁
-                    maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                    // 4文字以上入力不可
-                    decoration: InputDecoration(
-                      filled: true,
-                      // 背景を塗りつぶす
-                      fillColor: Color(0xFF84848F),
-                      // 薄いグレーの背景
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10), // 角を丸く
-                        borderSide: BorderSide(color: Colors.blue, width: 1),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                            color: Color(0xFF454343), width: 1), // 通常時の枠
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide(
-                            color: Colors.redAccent, width: 2), // 入力時の枠
-                      ),
-                      hintText: '____',
-                      // 4文字入ることが分かるように
-                      hintStyle: TextStyle(color: Colors.white60),
-                      // ヒントの色を薄く
-                      counterText: "",
-                      // 文字カウンターを消す
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 8), // 余白調整
+        body: SingleChildScrollView(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 書込み自動インクリメント設定
+              Padding(
+                padding: EdgeInsets.only(left: 10, bottom: 5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "探索ID",
+                      style: TextStyle(fontSize: 18, color: Colors.white),
                     ),
-                    textAlign: TextAlign.center,
-                    onChanged: (_) => _onManualEpcChanged(),
-                    // テキスト中央配置
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight
-                        .bold,), // フォントサイズUP
-                  ),
-                );
-              }),
-            ),
-          ),
-          
-          
+                  ],
+                ),
+              ),
 
-          TabBar(
-            controller: _tabController,
-            tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],
+              // 6つのTextField
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(6, (i) {
+                    return SizedBox(
+                      width: MediaQuery.of(context).size.width * 0.15,
+                      height: 30,
+                      child: TextField(
+                        controller: _epcControllers[i],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
+                        ],
+                        maxLength: 4,
+                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Color(0xFF84848F),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide(color: Colors.blue, width: 1),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                            BorderSide(color: Color(0xFF454343), width: 1),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide:
+                            BorderSide(color: Colors.redAccent, width: 2),
+                          ),
+                          hintText: '____',
+                          hintStyle: TextStyle(color: Colors.white60),
+                          counterText: "",
+                          contentPadding:
+                          EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+                        ),
+                        textAlign: TextAlign.center,
+                        onChanged: (_) => _onManualEpcChanged(),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+              ),
+
+              SizedBox(height: 20),
+
+              // TabBar と TabBarView（Expandedは外す）
+              TabBar(
+                controller: _tabController,
+                tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],
+              ),
+              Container(
+                height: 400, // 高さを明示（必要に応じて調整）
+                child: TabBarView(
+                  controller: _tabController,
+                  physics: NeverScrollableScrollPhysics(),
+                  children: [
+                    buildTabContent("EPC"),
+                    buildTabContent("Himoduke"),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              physics: NeverScrollableScrollPhysics(), //左右スクロールでタブ移動しないようにする
-              children: [
-                buildTabContent("EPC"),
-                buildTabContent("Himoduke"),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
     );
   }
 
@@ -803,8 +804,3 @@ class _SearchPageState extends State<SearchPage>
     );
   }
 }
-
-
-
-
-

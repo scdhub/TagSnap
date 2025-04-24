@@ -20,6 +20,13 @@ class _ListselectPageState extends State<ListselectPage> {
     _loadSavedFolder();
   }
 
+  // フルパスからファイル名だけを取得
+  String? _fileName() {
+    if (_folderPath == null) return null;
+    return _folderPath!.split('/').last;
+  }
+
+
   // SharedPreferences から保存済みのフォルダパスを読み込む
   Future<void> _loadSavedFolder() async {
     final prefs = await SharedPreferences.getInstance();
@@ -103,9 +110,12 @@ class _ListselectPageState extends State<ListselectPage> {
                     ),
                   ),
                 ],
+
+
+
                 Center(
                   child: Text(
-                    _folderPath ?? '未設定のためファイルを選択してください。',
+                    _fileName() ?? '未設定のためファイルを選択してください。',
                     style: TextStyle(fontSize: 14, color: Colors.white),
                     textAlign: TextAlign.center,
                   ),
