@@ -67,11 +67,10 @@ class _LoadingPageState extends State<LoadingPage>
           case 1: _currentTab="Bit"; break;
           case 2: _currentTab="Himoduke"; break;
         }
-        if (_tabController.indexIsChanging) stopReading();
+        // if (_tabController.indexIsChanging) stopReading();//タブ切り替え時もボタンを止めたいなら復活させる
         setState((){}); // buildRow も再描画
       });
-      //   if (_tabController.indexIsChanging) stopReading();
-      // });
+
 
     _setupScrollSync();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -103,7 +102,6 @@ class _LoadingPageState extends State<LoadingPage>
 
   @override
   void didPushNext() {
-    debugPrint('★★ didPushNext() called ★★');
     // 新しい画面が押下されたら自動停止
     stopReading();
   }
@@ -119,7 +117,6 @@ class _LoadingPageState extends State<LoadingPage>
   }
 
   void stopReading() async {
-    debugPrint('★★ stopReading() called. isReading=$isReading');
     if (isReading) {
       await WrapperDeviceLib.stopRFIDScan();
       toggleReading(); // ボタンの状態を更新
@@ -251,7 +248,7 @@ class _LoadingPageState extends State<LoadingPage>
     });
   }
 
-  /// 管理用 CSV 読み込み
+  // 管理用 CSV 読み込み
   Future<void> _loadCsvMapping() async {
     final prefs = await SharedPreferences.getInstance();
     final csvPath = prefs.getString('managementCsvPath');

@@ -35,6 +35,8 @@ class _SearchPageState extends State<SearchPage>
   String copiedEPC = ""; // コピーしたEPCを保持
   int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
   StreamSubscription<tagInfoData>? subscription;
+  int get filledBars => (reDrawSignalVal ~/ 10).clamp(0, 10);
+
   List<String> tagList = [];
   late List<TextEditingController> _epcControllers; //EPCを入力欄に表示する
   double matchRate = 0.0; // 0.0 ～ 1.0
@@ -44,9 +46,8 @@ class _SearchPageState extends State<SearchPage>
 
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
-
-  List<Map<String, dynamic>> epcList = []; // ← 読み込み後に上書きされる
-  List<Map<String, dynamic>> himodukeList = []; // ← 読み込み後に上書きされる
+  List<Map<String, dynamic>> epcList = []; // 読み込み後に上書きされる
+  List<Map<String, dynamic>> himodukeList = []; // 読み込み後に上書きされる
 
   // 設定画面で選んだ CSV ファイルのパスから読み込むマップ
   Map<String, Map<String, String>> managementMap = {};
@@ -74,7 +75,6 @@ class _SearchPageState extends State<SearchPage>
     _tabController = TabController(length: 2, vsync: this);
     _epcControllers = List.generate(6, (_) => TextEditingController());
     _setupScrollSync();
-    _loadDummyData();
 
     // フレーム後に設定からの CSV パスを読み込み
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -85,21 +85,6 @@ class _SearchPageState extends State<SearchPage>
     initializeRFID();
   }
 
-  /// ダミーデータ読み込み
-  Future<void> _loadDummyData() async {
-    // CSV など実処理は後日
-    // managementMap: EPC のキー件数 10 件
-    managementMap = Map.fromIterables(
-      List.generate(10, (i) => 'EPC_${i + 1}'),
-      List.generate(10, (i) => {'種別': 'Type${i + 1}', '管理番号': 'ID${i + 1}'}),
-    );
-    // タグ読み取り: 例として 6 件読み取り
-    tagList = managementMap.keys.take(6).toList();
-
-    // マッチ率計算
-    matchRate = tagList.length / managementMap.length;
-    setState(() {});
-  }
 
   void _setupScrollSync() {
     _headerScrollController.addListener(() {
@@ -125,7 +110,7 @@ class _SearchPageState extends State<SearchPage>
     if (!await file.exists()) return;
 
     final content = await file.readAsString();
-    final rows = const CsvToListConverter(eol: '\n', shouldParseNumbers: false)
+    final rows = const CsvToListConverter(eol: "\r\n", shouldParseNumbers: false)
         .convert(content);
 
     if (rows.length < 2) return;
@@ -149,6 +134,8 @@ class _SearchPageState extends State<SearchPage>
       subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
         final info = managementMap[getTagInfo.epc]; // 管理CSVのデータから情報を取得
 
+
+
         // 重複していない時はリスト情報更新
         if (!tagList.contains(getTagInfo.epc)) {
           tagList.add(getTagInfo.epc);
@@ -170,11 +157,12 @@ class _SearchPageState extends State<SearchPage>
           });
           updateData(epcList, "EPC");
           updateData(himodukeList, "Himoduke");
-        }// 重複時
+        } // 重複時
         else {
           if (selectedIndex != null) {
             // 選択中EPC情報と合致するデータか
-            if(getTagInfo.epc == epcList[selectedIndex!]["EPC"]) {
+            if (getTagInfo.epc == epcList[selectedIndex!]["EPC"]) {
+              print('取得してきたRSSI値：${getTagInfo.rssi}');
               var convPrm = ConvertRssiToPercent(getTagInfo.rssi);
               // ゲージ描画用の値を更新
               setState(() {
@@ -289,9 +277,9 @@ class _SearchPageState extends State<SearchPage>
 
   //電波強度の色ロジックを変数にまとめる
   Color getMatchColor(double matchRate) {
-    if (matchRate < 0.3) return Colors.red;
-    if (matchRate < 0.7) return Colors.yellow;
-    return Colors.green;
+    if (matchRate < 0.3) return Colors.red; //30未満の時は赤色
+    if (matchRate < 0.7) return Colors.yellow; //30～70未満は黄色
+    return Colors.green; //70~100の時は緑色
   }
 
   // メニューを表示する関数
@@ -322,11 +310,11 @@ class _SearchPageState extends State<SearchPage>
   }
 
   // RSSI値を線形変換
-  int ConvertRssiToPercent(String setRssi){
+  int ConvertRssiToPercent(String setRssi) {
     var valRssi = double.tryParse(setRssi) ?? 0.0;
 
     // 変換できなかったもしくは0で受信時だったら0で返す
-    if(0.0 == valRssi){
+    if (0.0 == valRssi) {
       return 0;
     }
 
@@ -633,9 +621,7 @@ class _SearchPageState extends State<SearchPage>
           Padding(
             padding: EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              selectedIndex != null
-                  ? "探索中のRSSI"
-                  : "探索するEPCを選択してください",
+              selectedIndex != null ? "探索中のRSSI" : "探索するEPCを選択してください",
               style: TextStyle(
                 fontSize: 13, // 少し小さめに
                 fontWeight: FontWeight.w500,
@@ -648,13 +634,15 @@ class _SearchPageState extends State<SearchPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(10, (index) {
+              // ここで isActive を定義
+              final bool isActive = index < filledBars;
               return Container(
                 margin: EdgeInsets.symmetric(horizontal: 1.5),
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: index < reDrawSignalVal* 10
-                      ? getMatchColor(reDrawSignalVal.toDouble())
+                  color: isActive
+                      ? getMatchColor(reDrawSignalVal / 100)  // 0.0～1.0 に正規化
                       : Colors.grey[300],
                   borderRadius: BorderRadius.circular(3),
                 ),
@@ -668,7 +656,7 @@ class _SearchPageState extends State<SearchPage>
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: getMatchColor(reDrawSignalVal.toDouble()),
+              color: getMatchColor(reDrawSignalVal / 100),
             ),
           ),
 
@@ -683,7 +671,7 @@ class _SearchPageState extends State<SearchPage>
                   onPressed: changeRFIDStartStop,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                    isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                        isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
                   ),
                   child: Text(
                     isReading ? '停止' : '探索開始',
@@ -701,23 +689,34 @@ class _SearchPageState extends State<SearchPage>
   //AppBarと
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '探索',
-          style: TextStyle(
+    return WillPopScope(
+      onWillPop: () async {
+        if (isReading) {
+          // スキャン中なら止める
+          await WrapperDeviceLib.stopRFIDScan();
+          setState(() {
+            isReading = false;
+          });
+        }
+        // true を返すと pop が続行される
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('探索',  style: TextStyle(
             color: Color(0xFF84848F),
             fontSize: 25,
             fontWeight: FontWeight.bold,
           ),
+          ),
+          centerTitle: true,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          toolbarHeight: 80,
         ),
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        elevation: 0,
-        toolbarHeight: 80,
-      ),
         body: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -756,23 +755,24 @@ class _SearchPageState extends State<SearchPage>
                           fillColor: Color(0xFF84848F),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide(color: Colors.blue, width: 1),
+                            borderSide:
+                                BorderSide(color: Colors.blue, width: 1),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide:
-                            BorderSide(color: Color(0xFF454343), width: 1),
+                                BorderSide(color: Color(0xFF454343), width: 1),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                             borderSide:
-                            BorderSide(color: Colors.redAccent, width: 2),
+                                BorderSide(color: Colors.redAccent, width: 2),
                           ),
                           hintText: '____',
                           hintStyle: TextStyle(color: Colors.white60),
                           counterText: "",
                           contentPadding:
-                          EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+                              EdgeInsets.symmetric(horizontal: 5, vertical: 8),
                         ),
                         textAlign: TextAlign.center,
                         onChanged: (_) => _onManualEpcChanged(),
@@ -807,7 +807,7 @@ class _SearchPageState extends State<SearchPage>
             ],
           ),
         ),
-    );
+    ));
   }
 
   // コピー完了ダイアログ
