@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../common_method/taginfo_data.dart';
 import '../common_method/wrapper_device_lib.dart';
+import 'package:tagsnap/common_method/taginfo_data.dart';
 import '../led_page/led_page.dart';
 import '../theme.dart';
 import 'package:path/path.dart' as p;
@@ -30,6 +31,7 @@ class _SearchPageState extends State<SearchPage>
   bool isReading = false;
   bool isNoDoubleRead = false;
   int? selectedIndex; // 選択された項目のインデックス
+  int reDrawSignalVal = 0; // ゲージ描画/再描画時に参照する値（超速で値更新される時には間引いた値が入る）
   String copiedEPC = ""; // コピーしたEPCを保持
   int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
   StreamSubscription<tagInfoData>? subscription;
@@ -58,6 +60,8 @@ class _SearchPageState extends State<SearchPage>
       if (match != -1) {
         setState(() {
           selectedIndex = match;
+          // ゲージ描画用の変数も初期化
+          reDrawSignalVal = 0;
         });
         // 必要ならスクロール位置を合わせるなど
       }
@@ -145,6 +149,7 @@ class _SearchPageState extends State<SearchPage>
       subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
         final info = managementMap[getTagInfo.epc]; // 管理CSVのデータから情報を取得
 
+        // 重複していない時はリスト情報更新
         if (!tagList.contains(getTagInfo.epc)) {
           tagList.add(getTagInfo.epc);
           epcList.add({
@@ -165,6 +170,18 @@ class _SearchPageState extends State<SearchPage>
           });
           updateData(epcList, "EPC");
           updateData(himodukeList, "Himoduke");
+        }// 重複時
+        else {
+          if (selectedIndex != null) {
+            // 選択中EPC情報と合致するデータか
+            if(getTagInfo.epc == epcList[selectedIndex!]["EPC"]) {
+              var convPrm = ConvertRssiToPercent(getTagInfo.rssi);
+              // ゲージ描画用の値を更新
+              setState(() {
+                reDrawSignalVal = convPrm;
+              });
+            }
+          }
         }
       });
     }
@@ -243,6 +260,21 @@ class _SearchPageState extends State<SearchPage>
     };
   }
 
+  // RFIDの読み取り開始/停止（連続読み込みのみ）
+  Future<void> changeRFIDStartStop() async {
+    bool ret;
+    // ステータスが未読み込み時（これから開始）
+    if (!isReading) {
+      ret = await WrapperDeviceLib.startRFIDScan();
+    } else {
+      ret = await WrapperDeviceLib.stopRFIDScan();
+    }
+
+    if (ret) {
+      toggleReading();
+    }
+  }
+
   void toggleReading() {
     setState(() {
       isReading = !isReading;
@@ -291,14 +323,39 @@ class _SearchPageState extends State<SearchPage>
 
   // RSSI値を線形変換
   int ConvertRssiToPercent(String setRssi){
+    var valRssi = double.tryParse(setRssi) ?? 0.0;
+
+    // 変換できなかったもしくは0で受信時だったら0で返す
+    if(0.0 == valRssi){
+      return 0;
+    }
+
     // -100dBmが最小、-30dBmが最大になる
     var dBmMin = -100;
     var dBmMax = -30;
-    var tmp = int.parse(setRssi).clamp(dBmMin, dBmMax);
+    // 小数点以下切り捨てでint値に直す
+    var tmp = valRssi.clamp(dBmMin, dBmMax).toInt();
 
     return (tmp - dBmMin) * 100 ~/ (dBmMax - dBmMin);
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    print("アプリ状態: $state"); //
+    if (state == AppLifecycleState.paused) {
+      // アプリがバックグラウンドに移行したとき
+      stopReading(); // 読み取り処理を停止
+    }
+  }
+
+  // ボタン操作外でのRFID停止対応
+  void stopReading() async {
+    if (isReading) {
+      await WrapperDeviceLib.stopRFIDScan();
+      toggleReading(); // ボタンの状態を更新
+    }
+  }
 
   void selectionDialog(String tabType) {
     showDialog(
@@ -475,10 +532,6 @@ class _SearchPageState extends State<SearchPage>
         ? finalWidth // EPC文字列を丸ごと１セルに
         : 100.0; // それ以外は従来どおり100px
 
-    // 選択中EPCに紐づく電波強度の取得（選択がされていない場合は0固定）
-    var signalPrm = selectedIndex != null ?
-    epcList[selectedIndex!]['電波強度'] : 0;
-
     return Column(children: [
       // 上部の「書込み対象選択リスト」など
       Padding(
@@ -547,11 +600,15 @@ class _SearchPageState extends State<SearchPage>
                     }
                     setState(() {
                       selectedIndex = index;
+                      // ゲージ描画用の変数も初期化
+                      reDrawSignalVal = 0;
                     });
                   },
                   onLongPressStart: (details) {
                     setState(() {
                       selectedIndex = index;
+                      // ゲージ描画用の変数も初期化
+                      reDrawSignalVal = 0;
                       showPopupMenu(context, details.globalPosition, index);
                     });
                   },
@@ -596,8 +653,8 @@ class _SearchPageState extends State<SearchPage>
                 width: 16,
                 height: 16,
                 decoration: BoxDecoration(
-                  color: index < signalPrm* 10
-                      ? getMatchColor(signalPrm)
+                  color: index < reDrawSignalVal* 10
+                      ? getMatchColor(reDrawSignalVal.toDouble())
                       : Colors.grey[300],
                   borderRadius: BorderRadius.circular(3),
                 ),
@@ -607,11 +664,11 @@ class _SearchPageState extends State<SearchPage>
 
           SizedBox(height: 4), // スペース最小限
           Text(
-            "${(signalPrm * 100).toStringAsFixed(0)}%",
+            "$reDrawSignalVal%",
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.bold,
-              color: getMatchColor(signalPrm),
+              color: getMatchColor(reDrawSignalVal.toDouble()),
             ),
           ),
 
@@ -623,7 +680,7 @@ class _SearchPageState extends State<SearchPage>
                 width: 150,
                 height: 40, // 高さを小さく
                 child: ElevatedButton(
-                  onPressed: toggleReading,
+                  onPressed: changeRFIDStartStop,
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
                     isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),

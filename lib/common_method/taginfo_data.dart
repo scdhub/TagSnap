@@ -38,22 +38,24 @@ class tagInfoData {
   });
 
   factory tagInfoData.fromMap(Map<String, dynamic> map) {
+    // null値が入っていた場合は代替値を入れる
+    // Listがnull時はKotlin側で考慮し何も値が入っていないListになっている
     return tagInfoData(
-      epc: map['epc'] as String,
-      ant: map['ant'] as String,
-      count: map['count'] as int,
+      epc: map['epc'] as String? ?? '',
+      ant: map['ant'] as String? ?? '',
+      count: map['count'] as int? ?? 0,
       epcBytes: Uint8List.fromList(List<int>.from(map['epcBytes'])),
-      freqPoint: map['freqPoint'] as double,
-      index: map['index'] as int,
-      pc: map['pc'] as String,
-      phase: map['phase'] as int,
-      remain: map['remain'] as int,
-      reserved: map['reserved'] as String,
-      rssi: map['rssi'] as String,
-      tid: map['tid'] as String,
+      freqPoint: map['freqPoint'] as double? ?? 0.0,
+      index: map['index'] as int? ?? 0,
+      pc: map['pc'] as String? ?? '',
+      phase: map['phase'] as int? ?? 0,
+      remain: map['remain'] as int? ?? 0,
+      reserved: map['reserved'] as String? ?? '',
+      rssi: map['rssi'] as String? ?? '',
+      tid: map['tid'] as String? ?? '',
       tidBytes: Uint8List.fromList(List<int>.from(map['tidBytes'])),
-      timeStamp: map['timeStamp'] as int,
-      user: map['user'] as String,
+      timeStamp: map['timeStamp'] as int? ?? 0,
+      user: map['user'] as String? ?? '',
       userBytes: Uint8List.fromList(List<int>.from(map['userBytes'])),
     );
   }
