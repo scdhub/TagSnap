@@ -1,22 +1,22 @@
 import 'dart:async';
-import 'dart:convert';
+// import 'dart:convert';
 import 'dart:io';
 
 import 'package:csv/csv.dart';
-import 'package:file_picker/file_picker.dart';
+// import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
+// import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+// import 'package:path_provider/path_provider.dart';
+// import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../common_method/taginfo_data.dart';
 import '../common_method/wrapper_device_lib.dart';
-import 'package:tagsnap/common_method/taginfo_data.dart';
+// import 'package:tagsnap/common_method/taginfo_data.dart';
 import '../led_page/led_page.dart';
 import '../theme.dart';
-import 'package:path/path.dart' as p;
+// import 'package:path/path.dart' as p;
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -30,7 +30,7 @@ class _SearchPageState extends State<SearchPage>
   late TabController _tabController;
   bool isReading = false;
   bool isNoDoubleRead = false;
-  int? selectedIndex; // 選択された項目のインデックス
+  int? selectedIndex; // リストから選択された項目のインデックス
   int reDrawSignalVal = 0; // ゲージ描画/再描画時に参照する値（超速で値更新される時には間引いた値が入る）
   String copiedEPC = ""; // コピーしたEPCを保持
   int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
@@ -38,6 +38,8 @@ class _SearchPageState extends State<SearchPage>
   int get filledBars => (reDrawSignalVal ~/ 10).clamp(0, 10);
 
   List<String> tagList = [];
+
+  late List<FocusNode> _epcFocusNodes;
   late List<TextEditingController> _epcControllers; //EPCを入力欄に表示する
   double matchRate = 0.0; // 0.0 ～ 1.0
   // ヘッダーとリストのスクロール位置同期用の ScrollController
@@ -75,6 +77,7 @@ class _SearchPageState extends State<SearchPage>
     _tabController = TabController(length: 2, vsync: this);
     _epcControllers = List.generate(6, (_) => TextEditingController());
     _setupScrollSync();
+    _epcFocusNodes = List.generate(6, (_) => FocusNode());
 
     // フレーム後に設定からの CSV パスを読み込み
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -84,7 +87,6 @@ class _SearchPageState extends State<SearchPage>
     });
     initializeRFID();
   }
-
 
   void _setupScrollSync() {
     _headerScrollController.addListener(() {
@@ -110,8 +112,9 @@ class _SearchPageState extends State<SearchPage>
     if (!await file.exists()) return;
 
     final content = await file.readAsString();
-    final rows = const CsvToListConverter(eol: "\r\n", shouldParseNumbers: false)
-        .convert(content);
+    final rows =
+        const CsvToListConverter(eol: "\r\n", shouldParseNumbers: false)
+            .convert(content);
 
     if (rows.length < 2) return;
     // 1行目をヘッダ、2行目以降をデータ
@@ -133,8 +136,6 @@ class _SearchPageState extends State<SearchPage>
     if (isInitRFID) {
       subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
         final info = managementMap[getTagInfo.epc]; // 管理CSVのデータから情報を取得
-
-
 
         // 重複していない時はリスト情報更新
         if (!tagList.contains(getTagInfo.epc)) {
@@ -199,16 +200,24 @@ class _SearchPageState extends State<SearchPage>
     });
   }
 
-  @override
+  @override //disposeは破棄だがプラットフォームリソースの解放するために必要
   void dispose() {
     _tabController.dispose();
     _headerScrollController.dispose();
     _listScrollController.dispose();
-    for (var c in _epcControllers) c.dispose();
+    // TextEditingController の破棄
+    for (var c in _epcControllers) {
+      c.dispose();
+    }
+    // FocusNode の破棄 ← ここを追加
+    for (var node in _epcFocusNodes) {
+      node.dispose();
+    }
 
-    subscription?.cancel(); //メモリリーク防止
-    WrapperDeviceLib.termRFID();
+    subscription?.cancel(); // メモリリーク防止
+    WrapperDeviceLib.termRFID(); // RFID ライブラリの後片づけ
     WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
+
     super.dispose();
   }
 
@@ -345,8 +354,8 @@ class _SearchPageState extends State<SearchPage>
     }
   }
 
-  void selectionDialog(String tabType) {
-    showDialog(
+  Future<void> selectionDialog(String tabType) {
+    return showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
@@ -479,7 +488,7 @@ class _SearchPageState extends State<SearchPage>
         border: Border(
           bottom:
               BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
-        ),
+        )
       ),
       child: Row(
         children: selectedColumns.entries.where((e) => e.value).map((e) {
@@ -491,11 +500,14 @@ class _SearchPageState extends State<SearchPage>
             // width: 100,
             width: width,
             alignment: Alignment.center,
+            //左寄せにしたいなら
+            // alignment: Alignment.left,
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
               isHeader ? e.key : (rowData?[e.key]?.toString() ?? ""),
               style: isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
               textAlign: TextAlign.center,
+              // textAlign: TextAlign.left,
             ),
           );
         }).toList(),
@@ -517,7 +529,7 @@ class _SearchPageState extends State<SearchPage>
         calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
     // EPCタブかつ列数が１（＝EPCだけ表示）のときだけ、この幅をセル幅として使う
     final double cellWidth = (isEPCTab && columnCount == 1)
-        ? finalWidth // EPC文字列を丸ごと１セルに
+        ? finalWidth // EPC文字列を丸ごと１セルにする
         : 100.0; // それ以外は従来どおり100px
 
     return Column(children: [
@@ -541,7 +553,16 @@ class _SearchPageState extends State<SearchPage>
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orangeAccent),
-                  onPressed: isEPCTab ? null : () => selectionDialog(tabType),
+                  onPressed: isEPCTab
+                      ? null
+                      : () async {
+                          //FocusNode のフォーカスを外す
+                          for (var node in _epcFocusNodes) {
+                            node.unfocus();
+                          }
+                          //その後ダイアログを開く
+                          await selectionDialog(tabType);
+                        },
                   child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
                 ),
               ),
@@ -578,18 +599,35 @@ class _SearchPageState extends State<SearchPage>
 
                 return GestureDetector(
                   onTap: () {
-                    final epc = epcList[index]['EPC'] as String;
-                    // 4文字ずつ切り出してコントローラに入れる
-                    for (var i = 0; i < 6; i++) {
-                      final start = i * 4;
-                      final end = (start + 4).clamp(0, epc.length);
-                      _epcControllers[i].text =
-                          (start < epc.length) ? epc.substring(start, end) : '';
+                    // リストをタップした瞬間にもフォーカス外す
+                    for (var node in _epcFocusNodes) {
+                      node.unfocus();
                     }
+
                     setState(() {
-                      selectedIndex = index;
-                      // ゲージ描画用の変数も初期化
-                      reDrawSignalVal = 0;
+                      if (selectedIndex == index) {
+                        // 選択を外す
+                        selectedIndex = null;
+                        for (var controller in _epcControllers) {
+                          controller.text = '';
+                        }
+                      } else {
+                        selectedIndex = index;
+                        final epc = epcList[index]['EPC'] as String;
+                        // 4文字ずつ切り出してコントローラに入れる
+                        for (var i = 0; i < 6; i++) {
+                          final start = i * 4;
+                          final end = (start + 4).clamp(0, epc.length);
+                          _epcControllers[i].text = (start < epc.length)
+                              ? epc.substring(start, end)
+                              : '';
+                        }
+                        // //タップしたり、タップを外したりする。外すときに空欄になるのでここにnullいれたら空白になるのでは?
+                        // setState(() {
+                        //   selectedIndex = (selectedIndex == index) ? null : index;
+                        //
+                        // });
+                      }
                     });
                   },
                   onLongPressStart: (details) {
@@ -642,7 +680,7 @@ class _SearchPageState extends State<SearchPage>
                 height: 16,
                 decoration: BoxDecoration(
                   color: isActive
-                      ? getMatchColor(reDrawSignalVal / 100)  // 0.0～1.0 に正規化
+                      ? getMatchColor(reDrawSignalVal / 100) // 0.0～1.0 に正規化
                       : Colors.grey[300],
                   borderRadius: BorderRadius.circular(3),
                 ),
@@ -690,124 +728,136 @@ class _SearchPageState extends State<SearchPage>
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async {
-        if (isReading) {
-          // スキャン中なら止める
-          await WrapperDeviceLib.stopRFIDScan();
-          setState(() {
-            isReading = false;
-          });
-        }
-        // true を返すと pop が続行される
-        return true;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('探索',  style: TextStyle(
-            color: Color(0xFF84848F),
-            fontSize: 25,
-            fontWeight: FontWeight.bold,
-          ),
-          ),
-          centerTitle: true,
-          backgroundColor: Colors.white,
-          elevation: 0,
-          toolbarHeight: 80,
-        ),
-        body: SingleChildScrollView(
-          padding:
-              EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 書込み自動インクリメント設定
-              Padding(
-                padding: EdgeInsets.only(left: 10, bottom: 5),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        onWillPop: () async {
+          if (isReading) {
+            // スキャン中なら止める
+            await WrapperDeviceLib.stopRFIDScan();
+            setState(() {
+              isReading = false;
+            });
+          }
+          // true を返すと pop が続行される
+          return true;
+        },
+        child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              // フォーカス中のTextFieldを解除してキーボードを閉じる
+              FocusScope.of(context).unfocus();
+            },
+            child: Scaffold(
+              resizeToAvoidBottomInset: false, //キーボードが表示される時の警告を削除する
+              appBar: AppBar(
+                title: Text(
+                  '探索',
+                  style: TextStyle(
+                    color: Color(0xFF84848F),
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                centerTitle: true,
+                backgroundColor: Colors.white,
+                elevation: 0,
+                toolbarHeight: 80,
+              ),
+              body: SingleChildScrollView(
+                padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(context).viewInsets.bottom),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      "探索ID",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
+                    // 書込み自動インクリメント設定
+                    Padding(
+                      padding: EdgeInsets.only(left: 10, bottom: 5),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "探索ID",
+                            style: TextStyle(fontSize: 18, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // 6つのTextField
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List.generate(6, (i) {
+                          return SizedBox(
+                            width: MediaQuery.of(context).size.width * 0.15,
+                            height: 30,
+                            child: TextField(
+                              focusNode: _epcFocusNodes[i],
+                              controller: _epcControllers[i],
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9a-fA-F]'))
+                              ],
+                              maxLength: 4,
+                              maxLengthEnforcement:
+                                  MaxLengthEnforcement.enforced,
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Color(0xFF84848F),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide:
+                                      BorderSide(color: Colors.blue, width: 1),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                      color: Color(0xFF454343), width: 1),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(
+                                      color: Colors.redAccent, width: 2),
+                                ),
+                                hintText: '____',
+                                hintStyle: TextStyle(color: Colors.white60),
+                                counterText: "",
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 8),
+                              ),
+                              textAlign: TextAlign.center,
+                              onChanged: (_) => _onManualEpcChanged(),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+                    ),
+
+                    SizedBox(height: 20),
+
+                    // TabBar と TabBarView（Expandedは外す）
+                    TabBar(
+                      controller: _tabController,
+                      tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],
+                    ),
+                    Container(
+                      height: 400, // 高さを明示（必要に応じて調整）
+                      child: TabBarView(
+                        controller: _tabController,
+                        physics: NeverScrollableScrollPhysics(),
+                        children: [
+                          buildTabContent("EPC"),
+                          buildTabContent("Himoduke"),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
-
-              // 6つのTextField
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(6, (i) {
-                    return SizedBox(
-                      width: MediaQuery.of(context).size.width * 0.15,
-                      height: 30,
-                      child: TextField(
-                        controller: _epcControllers[i],
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
-                        ],
-                        maxLength: 4,
-                        maxLengthEnforcement: MaxLengthEnforcement.enforced,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Color(0xFF84848F),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: Colors.blue, width: 1),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: Color(0xFF454343), width: 1),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide:
-                                BorderSide(color: Colors.redAccent, width: 2),
-                          ),
-                          hintText: '____',
-                          hintStyle: TextStyle(color: Colors.white60),
-                          counterText: "",
-                          contentPadding:
-                              EdgeInsets.symmetric(horizontal: 5, vertical: 8),
-                        ),
-                        textAlign: TextAlign.center,
-                        onChanged: (_) => _onManualEpcChanged(),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-              ),
-
-              SizedBox(height: 20),
-
-              // TabBar と TabBarView（Expandedは外す）
-              TabBar(
-                controller: _tabController,
-                tabs: [Tab(text: 'EPC'), Tab(text: '紐付け')],
-              ),
-              Container(
-                height: 400, // 高さを明示（必要に応じて調整）
-                child: TabBarView(
-                  controller: _tabController,
-                  physics: NeverScrollableScrollPhysics(),
-                  children: [
-                    buildTabContent("EPC"),
-                    buildTabContent("Himoduke"),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-    ));
+            )));
   }
 
   // コピー完了ダイアログ

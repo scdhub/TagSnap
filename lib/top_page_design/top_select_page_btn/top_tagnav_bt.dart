@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../tagnav_page/tagnav_page.dart'; // 追加
 
 class TopTagnavBt extends StatefulWidget {
@@ -19,10 +20,13 @@ class _TopTagnavButtonState extends State<TopTagnavBt> {
 
     return InkWell(
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const TagnavPage()),
-        );
+        const url =
+            'http://ec2-54-248-227-206.ap-northeast-1.compute.amazonaws.com/gps-tracker/public/';
+          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+        // Navigator.push(
+        //   context,
+        //   MaterialPageRoute(builder: (context) => const TagnavPage()),
+        // );
       },
 
 

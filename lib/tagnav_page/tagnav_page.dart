@@ -51,21 +51,26 @@ class _TagnavPageState extends State<TagnavPage> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed && _launched && !_returnBrowser) {
       // ブラウザから戻ってきたと判定できるタイミング
       _returnBrowser = true;
-
-      // アニメーションを止める（画面を変えるなどもOK）
+      // アニメーションを止める
       _dotTimer?.cancel();
-
-      Future.delayed(Duration(seconds: 1), () {
-        if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => TopPage(
-                title: 'TagSnap',
-              ), // ← 1つ前の画面に戻る
-            ),
-          );
-        }
-      });
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => TopPage(
+            title: 'TagSnap',
+          ), // ← 1つ前の画面に戻る
+        ),
+      );
+      //   Future.delayed(Duration(seconds: 1), () {
+      //     if (mounted) {
+      //       Navigator.of(context).pushReplacement(
+      //         MaterialPageRoute(
+      //           builder: (_) => TopPage(
+      //             title: 'TagSnap',
+      //           ), // ← 1つ前の画面に戻る
+      //         ),
+      //       );
+      //     }
+      //   });
     }
   }
 

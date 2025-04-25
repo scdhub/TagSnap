@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tagsnap/splash_page/start_splash.dart';
 // import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:tagsnap/top_page_design/top_select_page/top_page.dart';
 import 'theme.dart';
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false, // デバッグバナーを非表示
       title: 'TagSnap',
       theme: AppTheme.LightTheme, // `theme.dart` のテーマを適用
-      home: const TopPage(title: 'TagSnap',), // スプラッシュ画面を最初に表示
+      home: const StartSplash(title: 'animation',), // スプラッシュ画面を最初に表示
       navigatorObservers: [routeObserver],
     );
   }
