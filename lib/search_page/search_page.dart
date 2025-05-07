@@ -19,7 +19,14 @@ import '../theme.dart';
 // import 'package:path/path.dart' as p;
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key});
+  final String? initialSelectedEpc;
+  final int? initialSelectedIndex;
+
+  const SearchPage({
+    Key? key,
+    this.initialSelectedEpc,
+    this.initialSelectedIndex,
+  }) : super(key: key);
 
   @override
   State<StatefulWidget> createState() => _SearchPageState();
@@ -46,6 +53,15 @@ class _SearchPageState extends State<SearchPage>
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
 
+  // タブごとの縦スクロール用コントローラ
+  final ScrollController _epcScrollController = ScrollController();
+  final ScrollController _himodukeScrollController = ScrollController();
+
+
+  //手動で検索したときの内容
+  bool _epcMatch = false;// 手動入力が管理CSVのいずれかとマッチしたかどうか
+  int? _manualMatchIndex;// マッチしたときのリスト上のインデックス（選択行をハイライトするときにも使える）
+
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
   List<Map<String, dynamic>> epcList = []; // 読み込み後に上書きされる
@@ -60,32 +76,75 @@ class _SearchPageState extends State<SearchPage>
     if (_epcControllers.every((c) => c.text.length == 4)) {
       final entered = _epcControllers.map((c) => c.text).join();
       final match = epcList.indexWhere((e) => e['EPC'] == entered);
-      if (match != -1) {
-        setState(() {
+      setState(() {
+        if (match != -1) {
+          // マッチしたEPCが見つかった
+          _epcMatch = true;
+          _manualMatchIndex = match;
+          // リスト上も選択してハイライト（buildRow の isSelected と連動）
           selectedIndex = match;
-          // ゲージ描画用の変数も初期化
           reDrawSignalVal = 0;
-        });
-        // 必要ならスクロール位置を合わせるなど
-      }
+        } else {
+          // 一致なし
+          _epcMatch = false;
+          _manualMatchIndex = null;
+          selectedIndex = null;
+        }
+      });
+    } else {
+      // 文字数揃わない途中入力時はクリア
+      setState(() {
+        _epcMatch = false;
+        _manualMatchIndex = null;
+        selectedIndex = null;
+      });
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _epcControllers = List.generate(6, (_) => TextEditingController());
-    _setupScrollSync();
-    _epcFocusNodes = List.generate(6, (_) => FocusNode());
+    // コントローラ／フォーカスノードの生成
+    _epcControllers    = List.generate(6, (_) => TextEditingController());
+    _epcFocusNodes     = List.generate(6, (_) => FocusNode());
 
-    // フレーム後に設定からの CSV パスを読み込み
+    // タブコントローラ生成（タブ数は２）
+    _tabController     = TabController(length: 2, vsync: this);
+
+    // タブ切り替え時にスクロールを走らせるリスナー
+    _tabController.addListener(() {
+      // タブのアニメーション中ではなく、本当に切り替わったタイミングでだけ
+      if (!_tabController.indexIsChanging && selectedIndex != null) {
+        _scrollToSelected(_tabController.index);
+      }
+    });
+
+    // ★CSVロード・初期選択も addPostFrameCallback にまとめる★
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCsvMapping();
-      _initListsFromCsv();
+      _initListsFromCsv(); // epcList, himodukeList をセット
+
+      // 読み取り画面から渡された EPC があれば…
+      if (widget.initialSelectedEpc != null) {
+        final epc = widget.initialSelectedEpc!;
+        // ① テキストフィールドに4文字ずつ分割セット
+        for (var i = 0; i < _epcControllers.length; i++) {
+          final start = i * 4;
+          final end   = (start + 4).clamp(0, epc.length);
+          _epcControllers[i].text =
+          (start < epc.length) ? epc.substring(start, end) : '';
+        }
+        // ② 選択行を文字列マッチで探して selectedIndex に
+        selectedIndex = epcList.indexWhere((e) => e['EPC'] == epc);
+      }
+
+      // ③ 初回表示されるタブ（デフォルトは0)にスクロール
+      if (selectedIndex != null && selectedIndex! >= 0) {
+        _scrollToSelected(_tabController.index);
+      }
+
       setState(() {});
     });
-    initializeRFID();
   }
 
   void _setupScrollSync() {
@@ -101,6 +160,18 @@ class _SearchPageState extends State<SearchPage>
         _headerScrollController.jumpTo(_listScrollController.offset);
       }
     });
+  }
+
+  void _scrollToSelected(int tabIndex) {
+    // どちらのコントローラを使うか切り替え
+    final controller = (tabIndex == 0)
+        ? _epcScrollController
+        : _himodukeScrollController;
+
+    const rowHeight = 40.0;                // １行あたりの高さ（実寸に合わせて調整）
+    final offset    = selectedIndex! * rowHeight;
+    controller.jumpTo(offset);             // 一気に飛ばす
+    // controller.animateTo(offset, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
   }
 
   /// 管理用 CSV 読み込み
@@ -200,8 +271,10 @@ class _SearchPageState extends State<SearchPage>
     });
   }
 
-  @override //disposeは破棄だがプラットフォームリソースの解放するために必要
+  @override //disposeはプラットフォームリソースの解放する
   void dispose() {
+    _epcScrollController.dispose();
+    _himodukeScrollController.dispose();
     _tabController.dispose();
     _headerScrollController.dispose();
     _listScrollController.dispose();
@@ -209,7 +282,7 @@ class _SearchPageState extends State<SearchPage>
     for (var c in _epcControllers) {
       c.dispose();
     }
-    // FocusNode の破棄 ← ここを追加
+    // FocusNode の破棄
     for (var node in _epcFocusNodes) {
       node.dispose();
     }
@@ -532,6 +605,10 @@ class _SearchPageState extends State<SearchPage>
         ? finalWidth // EPC文字列を丸ごと１セルにする
         : 100.0; // それ以外は従来どおり100px
 
+    final controller = (tabType == "EPC")
+        ? _epcScrollController
+        : _himodukeScrollController;
+
     return Column(children: [
       // 上部の「書込み対象選択リスト」など
       Padding(
@@ -593,6 +670,7 @@ class _SearchPageState extends State<SearchPage>
             width: finalWidth,
             height: 300.0,
             child: ListView.builder(
+              controller: controller,//遷移後のスクロール
               itemCount: tagCount,
               itemBuilder: (context, index) {
                 bool isSelected = (index == selectedIndex);
@@ -622,11 +700,6 @@ class _SearchPageState extends State<SearchPage>
                               ? epc.substring(start, end)
                               : '';
                         }
-                        // //タップしたり、タップを外したりする。外すときに空欄になるのでここにnullいれたら空白になるのでは?
-                        // setState(() {
-                        //   selectedIndex = (selectedIndex == index) ? null : index;
-                        //
-                        // });
                       }
                     });
                   },
@@ -782,6 +855,7 @@ class _SearchPageState extends State<SearchPage>
                     ),
 
                     // 6つのTextField
+                    // 6つのTextField
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 10),
                       child: Row(
@@ -794,35 +868,35 @@ class _SearchPageState extends State<SearchPage>
                               focusNode: _epcFocusNodes[i],
                               controller: _epcControllers[i],
                               inputFormatters: [
-                                FilteringTextInputFormatter.allow(
-                                    RegExp(r'[0-9a-fA-F]'))
+                                FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
                               ],
                               maxLength: 4,
-                              maxLengthEnforcement:
-                                  MaxLengthEnforcement.enforced,
+                              maxLengthEnforcement: MaxLengthEnforcement.enforced,
                               decoration: InputDecoration(
                                 filled: true,
-                                fillColor: Color(0xFF84848F),
+                                // 入力欄の色がtrueの場合は黄緑色に変化する。一致するものがない場合はグレーのまま。
+                                // fillColor: _epcMatch
+                                //     ? Colors.lightGreen.withOpacity(0.4)
+                                //     : Color(0xFF84848F),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide:
-                                      BorderSide(color: Colors.blue, width: 1),
+                                  borderSide: BorderSide(color: Colors.blue, width: 1),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                      color: Color(0xFF454343), width: 1),
+                                  borderSide:
+                                  BorderSide(color: Color(0xFF454343), width: 1),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(
-                                      color: Colors.redAccent, width: 2),
+                                  borderSide:
+                                  BorderSide(color: Colors.redAccent, width: 2),
                                 ),
                                 hintText: '____',
                                 hintStyle: TextStyle(color: Colors.white60),
                                 counterText: "",
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 8),
+                                contentPadding:
+                                EdgeInsets.symmetric(horizontal: 5, vertical: 8),
                               ),
                               textAlign: TextAlign.center,
                               onChanged: (_) => _onManualEpcChanged(),
@@ -835,6 +909,7 @@ class _SearchPageState extends State<SearchPage>
                         }),
                       ),
                     ),
+
 
                     SizedBox(height: 20),
 

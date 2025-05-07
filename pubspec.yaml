@@ -31,6 +31,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  device_info_plus: ^11.1.1
+  package_info_plus: ^8.3.0
   flutter_native_splash: ^2.0.3
   path_provider: ^2.1.5
   flutter_file_dialog: ^3.0.2
@@ -40,7 +42,9 @@ dependencies:
   file_picker: ^8.0.7
   permission_handler: ^10.2.0
   shared_preferences: ^2.0.15
-  #  url_launcher: ^6.1.5
+  floating_bubbles: ^2.6.2
+#  uuid:^4.5.1
+#  url_launcher: ^..5
 
 
   # The following adds the Cupertino Icons font to your application.

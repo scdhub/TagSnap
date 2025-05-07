@@ -23,7 +23,8 @@ class _StartSplashState extends State<StartSplash>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    )..forward();
+    // )..repeat(reverse: true);
 
     // テキストを拡大縮小
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.2)

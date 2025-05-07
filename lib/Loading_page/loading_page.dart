@@ -32,7 +32,7 @@ class _LoadingPageState extends State<LoadingPage>
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
-  String _currentTab = "EPC";  // ← 追加
+  String _currentTab = "EPC"; // ← 追加
 
 
   // 各タブのデータ（実際は外部から受け取る）
@@ -62,13 +62,19 @@ class _LoadingPageState extends State<LoadingPage>
     _tabController = TabController(length: 3, vsync: this)
       ..addListener(() {
         // タブ切り替えを検知して State に保存
-        switch(_tabController.index) {
-          case 0: _currentTab="EPC"; break;
-          case 1: _currentTab="Bit"; break;
-          case 2: _currentTab="Himoduke"; break;
+        switch (_tabController.index) {
+          case 0:
+            _currentTab = "EPC";
+            break;
+          case 1:
+            _currentTab = "Bit";
+            break;
+          case 2:
+            _currentTab = "Himoduke";
+            break;
         }
         // if (_tabController.indexIsChanging) stopReading();//タブ切り替え時もボタンを止めたいなら復活させる
-        setState((){}); // buildRow も再描画
+        setState(() {}); // buildRow も再描画
       });
 
 
@@ -146,7 +152,6 @@ class _LoadingPageState extends State<LoadingPage>
     if (isInitRFID) {
       subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
         if (!tagList.contains(getTagInfo.epc)) {
-
           tagList.add(getTagInfo.epc);
           epcList.add({
             "No": (epcList.length + 1).toString(),
@@ -189,7 +194,7 @@ class _LoadingPageState extends State<LoadingPage>
     }
   }
 
-      // 読み取り開始/停止処理
+  // 読み取り開始/停止処理
   Future<void> readRFIDStartStop() async {
     bool ret;
     if (!isReading) {
@@ -301,7 +306,10 @@ class _LoadingPageState extends State<LoadingPage>
   // メニューを表示する関数
   void showPopupMenu(BuildContext context, Offset position, int index) async {
     final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    Overlay
+        .of(context)
+        .context
+        .findRenderObject() as RenderBox;
     final selectedEPC = epcList[index]["EPC"] ?? "";
 
     final result = await showMenu(
@@ -324,8 +332,10 @@ class _LoadingPageState extends State<LoadingPage>
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) =>
-                  SearchPage())); //（）に引数を持っていく。SearchPageでもうう。
+              builder: (context) => SearchPage(
+                initialSelectedEpc: selectedEPC,
+                initialSelectedIndex: index, // index がそのまま使えるなら渡しておく
+                  ))); //（）に引数を持っていく。SearchPageでもうう。
     } else if (result == "led") {
       Navigator.push(
           context,
@@ -333,6 +343,7 @@ class _LoadingPageState extends State<LoadingPage>
               builder: (context) => LedPage())); //（）に引数を持っていく。LEDPageでもらう。
     }
   }
+
 
   void selectionDialog(String tabType) {
     showDialog(

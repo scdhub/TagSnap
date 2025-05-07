@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/activation_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/beep_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/frequency_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/listselect_page.dart';
+import 'package:tagsnap/setting_page/setting_menu_page/login_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/no_double_reading_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/reading_mode_page.dart';
 import 'package:tagsnap/setting_page/setting_menu_page/rf_page.dart';
@@ -129,6 +131,13 @@ class _SettingPageState extends State<SettingPage> {
           // QR/バーコード設定
           _buildSectionTitle('QR/バーコード設定'),
           _buildNavTile(context, '対応種類'),
+
+          SizedBox(height: 20),
+
+          _buildSectionTitle('アクティベーション設定'),
+          _buildNavTile(context, 'アクティベーション'),
+          _buildNavTile(context, 'ログイン'),
+
         ],
       ),
     );
@@ -163,6 +172,12 @@ class _SettingPageState extends State<SettingPage> {
             break;
           case '紐付け・在庫リスト選択':
             destination = ListselectPage();
+            break;
+          case 'アクティベーション':
+            destination = ActivationPage();
+            break;
+          case 'ログイン':
+            destination = LoginPage();
             break;
         }
 
