@@ -14,16 +14,20 @@ class ActivationPage extends StatefulWidget {
 }
 
 class _ActivationPageState extends State<ActivationPage> {
-  final TextEditingController activationCodeController =
-      TextEditingController();
+  final TextEditingController activationCodeController = TextEditingController();
   final TextEditingController deviceNameController = TextEditingController();
 
   // デバイス情報
-  late String osType;
-  late String osVersion;
-  late String appVersion;
-  late String deviceModel;
-  late String deviceUuid;
+  String osType = '';
+  String osVersion = '';
+  String appVersion = '';
+  String deviceModel = '';
+  String deviceUuid = '';
+  // late String osType;
+  // late String osVersion;
+  // late String appVersion;
+  // late String deviceModel;
+  // late String deviceUuid;
 
   @override
   void initState() {
@@ -41,7 +45,7 @@ class _ActivationPageState extends State<ActivationPage> {
         osType = 'Android';
         osVersion = androidInfo.version.release ?? '';
         deviceModel = androidInfo.model ?? '';
-        deviceUuid = androidInfo.id ?? '仮のUUID';
+        deviceUuid = androidInfo.id ??'仮のUUID、ビルドバージョン';
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         osType = 'iOS';
@@ -94,8 +98,10 @@ class _ActivationPageState extends State<ActivationPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildActionButton('解除', Colors.grey, () {
+                _buildActionButton('解除', Color(0xFFFF3C3C), () {
                   _deactivateDialog();
+
+
                 }),
                 _buildActionButton('アクティベーション', Colors.blueAccent, () {
                   _showMockSubmit();
@@ -122,6 +128,7 @@ class _ActivationPageState extends State<ActivationPage> {
         ),
         const SizedBox(height: 6),
         TextField(
+          cursorColor: Colors.white,//カーソルみたいなマークを表示
           controller: controller,
           decoration: const InputDecoration(
             border: OutlineInputBorder(
@@ -194,15 +201,53 @@ class _ActivationPageState extends State<ActivationPage> {
   }
 
   void _showMockSubmit() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'アクティベーション送信（仮）\nコード: ${activationCodeController.text}\nデバイス名: ${deviceNameController.text}',
-        ),
-        duration: const Duration(seconds: 3),
-      ),
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            "アクティベーション送信（仮）",
+            textAlign: TextAlign.center, // タイトルを中央揃え
+            style: AppTheme.confirmDialogTheme.titleTextStyle,
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+            child: Text(
+              "コード: ${activationCodeController.text}\nデバイス名: ${deviceNameController.text}",
+              style: AppTheme.confirmDialogTheme.contentTextStyle,
+            ),
+          ),
+          actions: [
+            Align(
+              alignment: Alignment.center, // OKボタンを真ん中に配置
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: AppTheme.confirmDialogButtonColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+                    side: BorderSide(
+                        color: AppTheme.confirmDialogBorderColor,
+                        width: 2),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 10),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  "OK",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
+
 
   //解除ボタン押下後のダイアログ
   void _deactivateDialog() {

@@ -19,6 +19,7 @@ import '../theme.dart';
 // import 'package:path/path.dart' as p;
 
 class SearchPage extends StatefulWidget {
+  //遷移画面の処理
   final String? initialSelectedEpc;
   final int? initialSelectedIndex;
 
@@ -46,6 +47,10 @@ class _SearchPageState extends State<SearchPage>
 
   List<String> tagList = [];
 
+  //手動で検索したときの内容だが使わないのでコメント化
+  // bool _epcMatch = false;// 手動入力が管理CSVのいずれかとマッチしたかどうか
+  // int? _manualMatchIndex;// マッチしたときのリスト上のインデックス（選択行をハイライトするときにも使える）
+
   late List<FocusNode> _epcFocusNodes;
   late List<TextEditingController> _epcControllers; //EPCを入力欄に表示する
   double matchRate = 0.0; // 0.0 ～ 1.0
@@ -57,10 +62,6 @@ class _SearchPageState extends State<SearchPage>
   final ScrollController _epcScrollController = ScrollController();
   final ScrollController _himodukeScrollController = ScrollController();
 
-
-  //手動で検索したときの内容
-  bool _epcMatch = false;// 手動入力が管理CSVのいずれかとマッチしたかどうか
-  int? _manualMatchIndex;// マッチしたときのリスト上のインデックス（選択行をハイライトするときにも使える）
 
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
@@ -76,26 +77,38 @@ class _SearchPageState extends State<SearchPage>
     if (_epcControllers.every((c) => c.text.length == 4)) {
       final entered = _epcControllers.map((c) => c.text).join();
       final match = epcList.indexWhere((e) => e['EPC'] == entered);
-      setState(() {
-        if (match != -1) {
-          // マッチしたEPCが見つかった
-          _epcMatch = true;
-          _manualMatchIndex = match;
-          // リスト上も選択してハイライト（buildRow の isSelected と連動）
+
+      if (match != -1) {
+        // マッチしたとき
+        setState(() {
+          // _epcMatch = true;
+          // _manualMatchIndex = match;
           selectedIndex = match;
           reDrawSignalVal = 0;
-        } else {
-          // 一致なし
-          _epcMatch = false;
-          _manualMatchIndex = null;
-          selectedIndex = null;
+        });
+
+        // ① タブをEPC(=0)に切り替え
+        if (_tabController.index != 0) {
+          _tabController.animateTo(0);
         }
-      });
+
+        // ② フレーム後にスクロール
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToSelected(0);
+        });
+      } else {
+        // 不一致時
+        setState(() {
+          // _epcMatch = false;
+          // _manualMatchIndex = null;
+          selectedIndex = null;
+        });
+      }
     } else {
-      // 文字数揃わない途中入力時はクリア
+      // 途中入力時はクリア
       setState(() {
-        _epcMatch = false;
-        _manualMatchIndex = null;
+        // _epcMatch = false;
+        // _manualMatchIndex = null;
         selectedIndex = null;
       });
     }
@@ -113,13 +126,13 @@ class _SearchPageState extends State<SearchPage>
 
     // タブ切り替え時にスクロールを走らせるリスナー
     _tabController.addListener(() {
-      // タブのアニメーション中ではなく、本当に切り替わったタイミングでだけ
+      // タブのアニメーション中ではなく、切り替わったタイミングでだけ
       if (!_tabController.indexIsChanging && selectedIndex != null) {
         _scrollToSelected(_tabController.index);
       }
     });
 
-    // ★CSVロード・初期選択も addPostFrameCallback にまとめる★
+    // CSVロード・初期選択も addPostFrameCallback にまとめる
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCsvMapping();
       _initListsFromCsv(); // epcList, himodukeList をセット
@@ -134,11 +147,11 @@ class _SearchPageState extends State<SearchPage>
           _epcControllers[i].text =
           (start < epc.length) ? epc.substring(start, end) : '';
         }
-        // ② 選択行を文字列マッチで探して selectedIndex に
+        // 選択行を文字列マッチで探して selectedIndex に
         selectedIndex = epcList.indexWhere((e) => e['EPC'] == epc);
       }
 
-      // ③ 初回表示されるタブ（デフォルトは0)にスクロール
+      // 初回表示されるタブ（デフォルトは0)にスクロール
       if (selectedIndex != null && selectedIndex! >= 0) {
         _scrollToSelected(_tabController.index);
       }
@@ -147,20 +160,20 @@ class _SearchPageState extends State<SearchPage>
     });
   }
 
-  void _setupScrollSync() {
-    _headerScrollController.addListener(() {
-      if (_listScrollController.hasClients &&
-          _listScrollController.offset != _headerScrollController.offset) {
-        _listScrollController.jumpTo(_headerScrollController.offset);
-      }
-    });
-    _listScrollController.addListener(() {
-      if (_headerScrollController.hasClients &&
-          _headerScrollController.offset != _listScrollController.offset) {
-        _headerScrollController.jumpTo(_listScrollController.offset);
-      }
-    });
-  }
+  // void _setupScrollSync() {
+  //   _headerScrollController.addListener(() {
+  //     if (_listScrollController.hasClients &&
+  //         _listScrollController.offset != _headerScrollController.offset) {
+  //       _listScrollController.jumpTo(_headerScrollController.offset);
+  //     }
+  //   });
+  //   _listScrollController.addListener(() {
+  //     if (_headerScrollController.hasClients &&
+  //         _headerScrollController.offset != _listScrollController.offset) {
+  //       _headerScrollController.jumpTo(_listScrollController.offset);
+  //     }
+  //   });
+  // }
 
   void _scrollToSelected(int tabIndex) {
     // どちらのコントローラを使うか切り替え
@@ -168,13 +181,13 @@ class _SearchPageState extends State<SearchPage>
         ? _epcScrollController
         : _himodukeScrollController;
 
-    const rowHeight = 40.0;                // １行あたりの高さ（実寸に合わせて調整）
+    const rowHeight = 34.5;                // １行あたりの高さ（実寸に合わせて調整）
     final offset    = selectedIndex! * rowHeight;
     controller.jumpTo(offset);             // 一気に飛ばす
     // controller.animateTo(offset, duration: Duration(milliseconds: 300), curve: Curves.easeOut);
   }
 
-  /// 管理用 CSV 読み込み
+  // 管理用 CSV 読み込み
   Future<void> _loadCsvMapping() async {
     final prefs = await SharedPreferences.getInstance();
     final csvPath = prefs.getString('managementCsvPath');
@@ -855,7 +868,6 @@ class _SearchPageState extends State<SearchPage>
                     ),
 
                     // 6つのTextField
-                    // 6つのTextField
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 10),
                       child: Row(
@@ -865,8 +877,10 @@ class _SearchPageState extends State<SearchPage>
                             width: MediaQuery.of(context).size.width * 0.15,
                             height: 30,
                             child: TextField(
+                              enableInteractiveSelection: false,//自動生成の▲マークを非表示
                               focusNode: _epcFocusNodes[i],
                               controller: _epcControllers[i],
+                              cursorColor: Colors.white,//カーソルみたいなマークを表示
                               inputFormatters: [
                                 FilteringTextInputFormatter.allow(RegExp(r'[0-9a-fA-F]'))
                               ],

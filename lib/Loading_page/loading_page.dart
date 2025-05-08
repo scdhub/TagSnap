@@ -32,7 +32,7 @@ class _LoadingPageState extends State<LoadingPage>
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
-  String _currentTab = "EPC"; // ← 追加
+  String _currentTab = "EPC";
 
 
   // 各タブのデータ（実際は外部から受け取る）
@@ -260,7 +260,7 @@ class _LoadingPageState extends State<LoadingPage>
     if (csvPath != null && await File(csvPath).exists()) {
       final content = await File(csvPath).readAsString();
       final rows = const CsvToListConverter(
-        eol: '\n',
+        eol: '\r\n',
         shouldParseNumbers: false,
       ).convert(content);
       if (rows.length < 2) return;

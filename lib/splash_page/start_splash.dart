@@ -22,7 +22,7 @@ class _StartSplashState extends State<StartSplash>
     // アニメーションコントローラ
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
     )..forward();
     // )..repeat(reverse: true);
 
@@ -35,7 +35,7 @@ class _StartSplashState extends State<StartSplash>
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     // 一定時間後にTopへ遷移させる
-    Future.delayed(const Duration(seconds: 3), () {
+    Future.delayed(const Duration(seconds: 5), () {
       Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const TopPage(title: 'TagSnap',)),
       );
@@ -84,9 +84,9 @@ class _StartSplashState extends State<StartSplash>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: const [
-                Text('TagSnap', style: TextStyle(fontSize: 16)),
+                Text('TagSnap', style: TextStyle(fontSize: 28)),
                 SizedBox(height: 4),
-                Text('ver00000', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                Text('ver00000', style: TextStyle(fontSize: 20, color: Colors.grey)),
               ],
             ),
           ),

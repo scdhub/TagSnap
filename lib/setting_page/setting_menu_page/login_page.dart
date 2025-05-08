@@ -38,6 +38,7 @@ class _LoginPage extends State<LoginPage> {
             const SizedBox(height: 8),
 
             TextField(
+              cursorColor: Colors.white,//カーソルみたいなマークを表示
               controller: _accountController,
               decoration: InputDecoration(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -57,28 +58,38 @@ class _LoginPage extends State<LoginPage> {
             const SizedBox(height: 8),
 
             TextField(
+              cursorColor: Colors.white,//カーソルみたいなマークを表示
               controller: _passwordController,
               obscureText: true,
               decoration: InputDecoration(
-                border: const OutlineInputBorder(),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey),
+                  // contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
               ),
             ),
             const SizedBox(height: 24),
 
-            // UUIDは後ほどルールが決まったら表示させる？
-            Row(
-              children: [
-                const Text('UUID： ', style: TextStyle(fontSize: 16,color: Colors.white)),
-                Expanded(
-                  child: Text(
-                    '************',
-                    style: TextStyle(fontSize: 16, color: Colors.white),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
+            // // UUIDは現状表示させない。
+            // Row(
+            //   children: [
+            //     const Text('UUID： ', style: TextStyle(fontSize: 16,color: Colors.white)),
+            //     Expanded(
+            //       child: Text(
+            //         '************',
+            //         style: TextStyle(fontSize: 16, color: Colors.white),
+            //         overflow: TextOverflow.ellipsis,
+            //       ),
+            //     ),
+            //   ],
+            // ),
             const SizedBox(height: 24),
 
             Center(

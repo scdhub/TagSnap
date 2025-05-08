@@ -72,7 +72,7 @@ class _SettingPageState extends State<SettingPage> {
 
           SizedBox(height: 20),
 
-          // ▼ リーダー設定項目（リストタイルで遷移）
+          // リーダー設定項目（リストタイルで遷移）
           _buildSectionTitle('リーダー設定'),
           _buildNavTile(context, 'RF出力'),
           _buildNavTile(context, 'ビープ音'),
@@ -83,7 +83,7 @@ class _SettingPageState extends State<SettingPage> {
 
           SizedBox(height: 20),
 
-          // ▼ アプリ設定
+          //アプリ設定
           _buildSectionTitle('アプリ設定'),
           _buildNavTile(context, '紐付け・在庫リスト選択'),
           _buildNavTile(context, '辞書定義ファイル選択'),
@@ -143,7 +143,7 @@ class _SettingPageState extends State<SettingPage> {
     );
   }
 
-  // ▼ 共通UI部品（ナビゲーションタイル）
+  // UI部品
   Widget _buildNavTile(BuildContext context, String title) {
     return ListTile(
       title: Text(title, style: TextStyle(color: AppTheme.textColor)),
