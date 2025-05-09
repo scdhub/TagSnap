@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../theme.dart';
 
-void showResultDialog(BuildContext ctx, Map<String, dynamic> result) {
+Future<void> showResultDialog(BuildContext ctx, Map<String, dynamic> result) {
   final bool ok = result['success'] == true;
   final String msg = result['message']
       ?? (ok ? "処理が完了しました。" : "処理に失敗しました。");
 
-  showDialog(
+  return showDialog<void>(
     context: ctx,
     builder: (dialogCtx) => AlertDialog(
       title: Text(
