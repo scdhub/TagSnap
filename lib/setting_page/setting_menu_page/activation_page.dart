@@ -2,9 +2,12 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-
+import '../../dummy_data/daialog_succes_or_false.dart';
+import '../../dummy_data/dummy_api_data.dart';
 import '../../theme.dart';
+import 'login_page.dart';
 
 class ActivationPage extends StatefulWidget {
   const ActivationPage({super.key});
@@ -14,8 +17,11 @@ class ActivationPage extends StatefulWidget {
 }
 
 class _ActivationPageState extends State<ActivationPage> {
-  final TextEditingController activationCodeController = TextEditingController();
-  final TextEditingController deviceNameController = TextEditingController();
+  final TextEditingController activationCodeController =
+      TextEditingController(); //アクティベーションコードの管理
+  final TextEditingController deviceNameController =
+      TextEditingController(); //デバイス名の管理
+  bool isActivated = false; // ボタンの反応/無反応
 
   // デバイス情報
   String osType = '';
@@ -23,6 +29,7 @@ class _ActivationPageState extends State<ActivationPage> {
   String appVersion = '';
   String deviceModel = '';
   String deviceUuid = '';
+
   // late String osType;
   // late String osVersion;
   // late String appVersion;
@@ -33,6 +40,14 @@ class _ActivationPageState extends State<ActivationPage> {
   void initState() {
     super.initState();
     _deviceInfo();
+    _loadActivationStatus(); //状態読み込み
+  }
+
+  Future<void> _loadActivationStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isActivated = prefs.getBool('activated') ?? false;
+    });
   }
 
   Future<void> _deviceInfo() async {
@@ -45,7 +60,7 @@ class _ActivationPageState extends State<ActivationPage> {
         osType = 'Android';
         osVersion = androidInfo.version.release ?? '';
         deviceModel = androidInfo.model ?? '';
-        deviceUuid = androidInfo.id ??'仮のUUID、ビルドバージョン';
+        deviceUuid = androidInfo.id ?? '仮のUUID、ビルドバージョン';
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         osType = 'iOS';
@@ -98,14 +113,16 @@ class _ActivationPageState extends State<ActivationPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildActionButton('解除', Color(0xFFFF3C3C), () {
-                  _deactivateDialog();
-
-
-                }),
-                _buildActionButton('アクティベーション', Colors.blueAccent, () {
-                  _showMockSubmit();
-                }),
+                _buildActionButton(
+                  '解除',
+                  Color(0xFFFF3C3C),
+                  isActivated ? _deactivateDialog : null, // 無効化
+                ),
+                _buildActionButton(
+                  'アクティベーション',
+                  Colors.blueAccent,
+                  isActivated ? null : _showMockSubmit, // 無効化
+                ),
               ],
             ),
           ],
@@ -114,7 +131,8 @@ class _ActivationPageState extends State<ActivationPage> {
     );
   }
 
-  Widget _buildLabeledTextField(String label, TextEditingController controller) {
+  Widget _buildLabeledTextField(
+      String label, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -128,7 +146,7 @@ class _ActivationPageState extends State<ActivationPage> {
         ),
         const SizedBox(height: 6),
         TextField(
-          cursorColor: Colors.white,//カーソルみたいなマークを表示
+          cursorColor: Colors.white, //カーソルみたいなマークを表示
           controller: controller,
           decoration: const InputDecoration(
             border: OutlineInputBorder(
@@ -145,22 +163,6 @@ class _ActivationPageState extends State<ActivationPage> {
       ],
     );
   }
-
-
-  // Widget _buildTextField(String label, TextEditingController controller) {
-  //   return TextField(
-  //     controller: controller,
-  //     decoration: InputDecoration(
-  //       labelText: label,
-  //       enabledBorder: const OutlineInputBorder(
-  //         borderSide: BorderSide(color: Colors.grey),
-  //       ),
-  //       focusedBorder: const OutlineInputBorder(
-  //         borderSide: BorderSide(color: Colors.grey), // 同じ色で固定
-  //       ),
-  //     ),
-  //   );
-  // }
 
   Widget _buildInfoRow(String label, String value) {
     return Padding(
@@ -185,112 +187,104 @@ class _ActivationPageState extends State<ActivationPage> {
     );
   }
 
-  Widget _buildActionButton(String label, Color color, VoidCallback onPressed) {
+  Widget _buildActionButton(
+      String label, Color activeColor, VoidCallback? onPressed) {
+    final bool isEnabled = onPressed != null;
+
     return SizedBox(
       width: MediaQuery.of(context).size.width * 0.4,
       height: 48,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
+          backgroundColor: isEnabled ? activeColor : Colors.grey,
+          foregroundColor: Colors.white,
         ),
         onPressed: onPressed,
-        child: Text(label,
-            style: const TextStyle(color: Colors.white, fontSize: 12)),
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 12),
+        ),
       ),
     );
   }
 
-  void _showMockSubmit() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            "アクティベーション送信（仮）",
-            textAlign: TextAlign.center, // タイトルを中央揃え
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-            child: Text(
-              "コード: ${activationCodeController.text}\nデバイス名: ${deviceNameController.text}",
-              style: AppTheme.confirmDialogTheme.contentTextStyle,
-            ),
-          ),
-          actions: [
-            Align(
-              alignment: Alignment.center, // OKボタンを真ん中に配置
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: AppTheme.confirmDialogButtonColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                    side: BorderSide(
-                        color: AppTheme.confirmDialogBorderColor,
-                        width: 2),
-                  ),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  "OK",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+  Future<void> _showMockSubmit() async {
+    // モック API （ダミーAPI）を呼び出し(dummy_api_data.dart)
+    final result = await mockActivate(
+      activationCodeController.text,
+      deviceNameController.text,
     );
+
+    // 成功時は SharedPreferences に保存 & 遷移
+    if (result['success'] == true) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('activated', true);
+      setState(() => isActivated = true);
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    }
+
+    // ダイアログで結果表示（daialog_succes_or_false.dart）
+    showResultDialog(context, result);
   }
 
-
-  //解除ボタン押下後のダイアログ
   void _deactivateDialog() {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(
-            "確認",
-            textAlign: TextAlign.center, // タイトルを中央揃え
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-            child: Text(
-              "解除機能は未実装になっています。",
-              style: AppTheme.confirmDialogTheme.contentTextStyle,
-            ),
-          ),
+          title: Text("確認",
+              textAlign: TextAlign.center,
+              style: AppTheme.confirmDialogTheme.titleTextStyle),
+          content: Text("アクティベーションを解除しますか？",
+              textAlign: TextAlign.center,
+              style: AppTheme.confirmDialogTheme.contentTextStyle),
+          actionsAlignment: MainAxisAlignment.center,
           actions: [
-            Align(
-              alignment: Alignment.center, // OKボタンを真ん中に配置
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white, // 文字を白
-                  backgroundColor: AppTheme.confirmDialogButtonColor, // 背景色を青系
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                    side: BorderSide(
-                        color: AppTheme.confirmDialogBorderColor,
-                        width: 2), // 明るい枠線
-                  ),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10), // 余白を適切に
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.lightBlue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Colors.blueAccent, width: 2),
                 ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  "OK",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text("CANCEL"),
+            ),
+        const SizedBox(width: 10,),
+            TextButton(
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: AppTheme.confirmDialogButtonColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(
+                      color: AppTheme.confirmDialogBorderColor, width: 2),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              onPressed: () async {
+                //モック API
+                final result = await mockDeactivate();
+
+                //成功時のみフラグ削除 & state 更新
+                if (result['success'] == true) {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.remove('activated');
+                  setState(() => isActivated = false);
+                }
+
+                //ダイアログ類を閉じて結果表示
+                Navigator.pop(context);
+                showResultDialog(context, result);
+              },
+              child: const Text("OK"),
             ),
           ],
         );
@@ -298,3 +292,144 @@ class _ActivationPageState extends State<ActivationPage> {
     );
   }
 }
+
+////アクティベーションダイアログ
+// void _showMockSubmit() {
+//   showDialog(
+//     context: context,
+//     builder: (context) {
+//       return AlertDialog(
+//         title: Text(
+//           "アクティベーション送信（仮）",
+//           textAlign: TextAlign.center, // タイトルを中央揃え
+//           style: AppTheme.confirmDialogTheme.titleTextStyle,
+//         ),
+//         content: Padding(
+//           padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+//           child: Text(
+//             "コード: ${activationCodeController.text}\nデバイス名: ${deviceNameController.text}",
+//             style: AppTheme.confirmDialogTheme.contentTextStyle,
+//             textAlign: TextAlign.center,
+//           ),
+//         ),
+//         actions: [
+//           Align(
+//             alignment: Alignment.center, // OKボタンを真ん中に配置
+//             child: TextButton(
+//               style: TextButton.styleFrom(
+//                 foregroundColor: Colors.white,
+//                 backgroundColor: AppTheme.confirmDialogButtonColor,
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+//                   side: BorderSide(
+//                       color: AppTheme.confirmDialogBorderColor, width: 2),
+//                 ),
+//                 padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+//               ),
+//               //遷移処理
+//               onPressed: () async {
+//                 // ダイアログを閉じる
+//                 Navigator.pop(context);
+//                 // アクティベート済みフラグを保存
+//                 final prefs = await SharedPreferences.getInstance();
+//                 await prefs.setBool('activated', true);
+//                 // ログイン画面へ
+//                 Navigator.of(context).pushReplacement(
+//                   MaterialPageRoute(builder: (_) => const LoginPage()),
+//                 );
+//               },
+//               child: Text(
+//                 "OK",
+//                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+//               ),
+//             ),
+//           ),
+//         ],
+//       );
+//     },
+//   );
+// }
+
+//   //解除ボタン押下後のダイアログ
+//   void _deactivateDialog() {
+//     showDialog(
+//       context: context,
+//       builder: (context) {
+//         return AlertDialog(
+//           title: Text(
+//             "確認",
+//             textAlign: TextAlign.center, // タイトルを中央揃え
+//             style: AppTheme.confirmDialogTheme.titleTextStyle,
+//           ),
+//           content: Padding(
+//             padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+//             child: Text(
+//               "アクティベーションを解除しますか？",
+//               style: AppTheme.confirmDialogTheme.contentTextStyle,
+//               textAlign: TextAlign.center,
+//             ),
+//           ),
+//           actionsAlignment: MainAxisAlignment.center,
+//           actions: [
+//             // キャンセル
+//             TextButton(
+//               style: TextButton.styleFrom(
+//                 foregroundColor: Colors.white,
+//                 backgroundColor: Colors.lightBlue,
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(8),
+//                   side: BorderSide(color: Colors.blueAccent, width: 2),
+//                 ),
+//                 padding:
+//                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+//               ),
+//               onPressed: () => Navigator.pop(context),
+//               child: const Text(
+//                 "CANCEL",
+//                 textAlign: TextAlign.center,
+//               ),
+//             ),
+//             const SizedBox(
+//               width: 10,
+//             ),
+//             // OK（解除実行）
+//             TextButton(
+//               style: TextButton.styleFrom(
+//                 foregroundColor: Colors.white,
+//                 backgroundColor: AppTheme.confirmDialogButtonColor,
+//                 shape: RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(8),
+//                   side: BorderSide(
+//                       color: AppTheme.confirmDialogBorderColor, width: 2),
+//                 ),
+//                 padding:
+//                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+//               ),
+//               onPressed: () async {
+//                 // SharedPreferences から activated フラグを削除
+//                 final prefs = await SharedPreferences.getInstance();
+//                 await prefs.remove('activated');
+//
+//                 // ローカル state を更新
+//                 setState(() {
+//                   isActivated = false;
+//                 });
+//
+//                 // ダイアログを閉じる
+//                 Navigator.pop(context);
+//               },
+//               child: const Text(
+//                 "OK",
+//                 textAlign: TextAlign.center,
+//                 style: TextStyle(
+//                   fontSize: 16,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//             ),
+//           ],
+//         );
+//       },
+//     );
+//   }
+// }

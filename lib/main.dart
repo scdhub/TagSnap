@@ -4,7 +4,6 @@ import 'package:tagsnap/splash_page/start_splash.dart';
 import 'package:tagsnap/top_page_design/top_select_page/top_page.dart';
 import 'theme.dart';
 
-
 void main() {
   runApp(const MyApp());
 }

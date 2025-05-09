@@ -39,7 +39,7 @@ class _TopPageState extends State<TopPage> {
             const SizedBox(width: 8), // テキストとアイコンの間隔
             Image.asset(
               'assets/assets_tagsnap_image/TagSnap_01.png',
-              height: 45, // アイコンサイズはお好みで
+              height: 45,
             ),
           ],
         ),

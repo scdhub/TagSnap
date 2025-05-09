@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 
+import '../setting_page/setting_menu_page/activation_page.dart';
+import '../setting_page/setting_menu_page/login_page.dart';
 import '../top_page_design/top_select_page/top_page.dart'; // 遷移に使う
+import 'package:package_info_plus/package_info_plus.dart'; //ver情報を取るために使う
+
 
 class StartSplash extends StatefulWidget {
   const StartSplash({Key? key, required String title}) : super(key: key);
+
 
   @override
   State<StartSplash> createState() => _StartSplashState();
@@ -16,9 +22,13 @@ class _StartSplashState extends State<StartSplash>
   late final Animation<double> _scaleAnimation;
   late final Animation<double> _fadeAnimation;
 
+  String _appVersion = ''; //バージョン情報を取得するクラス
+
+
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();//バージョン情報を取得するための処理
     // アニメーションコントローラ
     _controller = AnimationController(
       vsync: this,
@@ -35,11 +45,35 @@ class _StartSplashState extends State<StartSplash>
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     // 一定時間後にTopへ遷移させる
-    Future.delayed(const Duration(seconds: 5), () {
-      Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const TopPage(title: 'TagSnap',)),
-      );
+    Future.delayed(const Duration(seconds: 5), _checkAndNavigate);
+  }
+
+  //app情報を取得する
+  Future<void> _loadAppVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = info.version;
     });
+  }
+
+  Future<void> _checkAndNavigate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final activated = prefs.getBool('activated') ?? false; //アクティベーションtrue:済　false:未
+    final loggedIn  = prefs.getBool('loggedIn')  ?? true; //ログインtrue:済　false:未
+
+    if (!activated) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const ActivationPage()),
+      );
+    } else if (!loggedIn) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const TopPage(title: 'TagSnap')),
+      );
+    }
   }
 
   @override
@@ -77,16 +111,18 @@ class _StartSplashState extends State<StartSplash>
               ),
             ),
           ),
+
+          //バージョン情報
           Positioned(
             bottom: 40,
             left: 0,
             right: 0,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('TagSnap', style: TextStyle(fontSize: 28)),
-                SizedBox(height: 4),
-                Text('ver00000', style: TextStyle(fontSize: 20, color: Colors.grey)),
+              children: [
+                const Text('TagSnap', style: TextStyle(fontSize: 28)),
+                const SizedBox(height: 4),
+                Text('ver$_appVersion', style: const TextStyle(fontSize: 20, color: Colors.grey)),
               ],
             ),
           ),

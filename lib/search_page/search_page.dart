@@ -877,7 +877,7 @@ class _SearchPageState extends State<SearchPage>
                             width: MediaQuery.of(context).size.width * 0.15,
                             height: 30,
                             child: TextField(
-                              enableInteractiveSelection: false,//自動生成の▲マークを非表示
+                              enableInteractiveSelection: true,//true=切り取り、コピー、貼り付けのメニュー、テキストキャレット(カーソル移動：▲マークで移動)が使える。
                               focusNode: _epcFocusNodes[i],
                               controller: _epcControllers[i],
                               cursorColor: Colors.white,//カーソルみたいなマークを表示
