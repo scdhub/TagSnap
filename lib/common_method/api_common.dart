@@ -18,7 +18,7 @@ class ApiCommonDefine {
   // アクティベーション
   final String activationPath = 'tagsnap/device/activation';
   // アクティベーション解除
-  final String deactivatePath = 'tagsnap/device/deactivate';
+  final String deactivatePath = 'tagsnap/device/deactivation';
   // ログイン
   final String loginPath = 'smartlogix/login/device';
 }
@@ -85,7 +85,15 @@ class ApiCommonMethod {
     final timestampNum = int.parse(timestampStr);
 
     // Base36に変換し、8桁になるように左詰め
-    final base36 = timestampNum.toRadixString(36).padLeft(8, '0');
+    String base36 = timestampNum.toRadixString(36);
+
+    // 桁数を調整（8桁以内にする、超えていたら先頭8桁を残して切る）
+    if (base36.length > 8) {
+      base36 = base36.substring(0, 8); // 上位8桁（下位を切り捨て）
+    } else {
+      base36 = base36.padLeft(8, '0'); // 8桁未満は0埋め
+    }
+
     return base36;
   }
 
@@ -149,7 +157,11 @@ class SharedPreferenceInfo {
     _deviceUUID = _prefs?.getString(SharedPreferenceKeys().devUUID) ?? '';
     _deviceName = _prefs?.getString(SharedPreferenceKeys().devName) ?? '';
     _activationCode = _prefs?.getString(SharedPreferenceKeys().actCode) ?? '';
-    var tmp = _prefs?.getString('debug') ?? '';
+
+    print(_deviceUUID);
+    print(_deviceName);
+    print(_activationCode);
+
 
   }
 
@@ -177,9 +189,8 @@ class SharedPreferenceInfo {
     // SharedPreferencesに書き込み
     await prefs.setString(SharedPreferenceKeys().devUUID, _deviceUUID);
     await prefs.setString(SharedPreferenceKeys().devName, _deviceName);
-    _deviceName = prefs.getString(SharedPreferenceKeys().devName) ?? '';
     await prefs.setString(SharedPreferenceKeys().actCode, _activationCode);
-    await prefs.setString('debug', 'check');
+
   }
 
   // 終了処理

@@ -79,8 +79,6 @@ class _ActivationPageState extends State<ActivationPage> {
   }
 
   Future<Map<String, dynamic>?> startDeactivate() async {
-    // アクティベーション「は」デプロイなのでここはまだ未実装っぽい
-    return null;
     // アクティベーション解除処理実行
     var result = await apiAct.deactivate();
 
@@ -278,7 +276,7 @@ class _ActivationPageState extends State<ActivationPage> {
               ),
               onPressed: () async {
                 //モック API
-                final result = await startActivation();
+                final result = await startDeactivate();
 
                 //成功時のみフラグ削除 & state 更新
                 if (null != result && true == result['success']) {

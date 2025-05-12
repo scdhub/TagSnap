@@ -6,6 +6,7 @@ import '../setting_page/setting_menu_page/activation_page.dart';
 import '../setting_page/setting_menu_page/login_page.dart';
 import '../top_page_design/top_select_page/top_page.dart'; // 遷移に使う
 import 'package:package_info_plus/package_info_plus.dart'; //ver情報を取るために使う
+import 'package:tagsnap/common_method/api_common.dart';
 
 
 class StartSplash extends StatefulWidget {
@@ -57,9 +58,8 @@ class _StartSplashState extends State<StartSplash>
   }
 
   Future<void> _checkAndNavigate() async {
-    final prefs = await SharedPreferences.getInstance();
-    final activated = true;
-    //prefs.getBool('activated') ?? false; //アクティベーションtrue:済　false:未
+    //final activated = true;
+    final activated = (SharedPreferenceInfo().deviceUUID.length > 0) ? true : false; //アクティベーションtrue:済　false:未
     final loggedIn  = true;
     //prefs.getBool('loggedIn')  ?? true; //ログインtrue:済　false:未
 

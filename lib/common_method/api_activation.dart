@@ -33,6 +33,19 @@ class ApiActivation {
 
   // クラス初期化時に必要情報をまとめて取得
   Future<void> init() async {
+
+    // デバイスUUIDが空文字（未アクティベーション）の場合はUUIDを作成する
+    if('' == SharedPreferenceInfo().deviceUUID) {
+      _workDeviceUUID = await ApiCommonMethod().makeDeviceUUID(_TimeStatus);
+      // UUID未記録なので未アクティベートと判断する
+      _isActivate = false;
+    } else {
+      // 入っていればその情報を使用
+      _workDeviceUUID = SharedPreferenceInfo().deviceUUID;
+      // UUID記録済みなのでアクティベート済みと判断する
+      _isActivate = true;
+    }
+
     if (Platform.isAndroid) {
       // OSがAndroid
       _osType = 'Android';
@@ -46,18 +59,6 @@ class ApiActivation {
       // OSがAndroid
       _osType = 'iOS';
       // 将来的にここにiOS用処理を追加
-    }
-
-    // デバイスUUIDが空文字（未アクティベーション）の場合はUUIDを作成する
-    if('' == SharedPreferenceInfo().deviceUUID) {
-      _workDeviceUUID = await ApiCommonMethod().makeDeviceUUID(_TimeStatus);
-      // UUID未記録なので未アクティベートと判断する
-      _isActivate = false;
-    } else {
-      // 入っていればその情報を使用
-      _workDeviceUUID = SharedPreferenceInfo().deviceUUID;
-      // UUID記録済みなのでアクティベート済みと判断する
-      _isActivate = true;
     }
   }
 
@@ -73,7 +74,7 @@ class ApiActivation {
     final body = jsonEncode({
       'activation_code': setActivationCode,
       'device_name': setDeviceName,
-      'device_uuid': SharedPreferenceInfo().deviceUUID,
+      'device_uuid': _workDeviceUUID,
       'os_type': _osType,
       'os_version': _osVersion,
       'app_version': ApiCommonDefine().appVer,
@@ -131,7 +132,7 @@ class ApiActivation {
       'x-api-key': ApiCommonDefine().xApiKey
     };
     final body = jsonEncode({
-      'device_uuid': SharedPreferenceInfo().deviceUUID
+      'device_uuid': _workDeviceUUID
     });
 
     // アクティベーション解除実行
