@@ -53,7 +53,7 @@ class _StartSplashState extends State<StartSplash>
   Future<void> _loadAppVersion() async {
     final info = await PackageInfo.fromPlatform();
     setState(() {
-      _appVersion = info.version;
+      _appVersion = ApiCommonDefine().appVer;
     });
   }
 
