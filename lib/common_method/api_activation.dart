@@ -146,8 +146,9 @@ class ApiActivation {
           SharedPreferenceKeys().devUUID);
       SharedPreferenceInfo().writeSharedPreference();
 
-      // 作業用UUID変数も初期化
-      _workDeviceUUID = '';
+      // 作業用変数も未アクティベート時の情報と同等にする（新規UUID作成、アクティベーションフラグOFF）
+      _workDeviceUUID = await ApiCommonMethod().makeDeviceUUID(_TimeStatus);
+      _isActivate = false;
 
       // 結果分岐(結果内容の詳しい参照は画面側で行う)
       if (response.statusCode == 200) {
