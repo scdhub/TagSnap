@@ -136,6 +136,7 @@ class _SearchPageState extends State<SearchPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCsvMapping();
       _initListsFromCsv(); // epcList, himodukeList をセット
+      await initializeRFID();
 
       // 読み取り画面から渡された EPC があれば…
       if (widget.initialSelectedEpc != null) {
@@ -309,6 +310,7 @@ class _SearchPageState extends State<SearchPage>
 
   //CSV だけで一覧を初期化（スキャン前に全レコードを表示）
   void _initListsFromCsv() {
+
     epcList = [];
     himodukeList = [];
 

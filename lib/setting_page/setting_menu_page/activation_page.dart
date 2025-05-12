@@ -5,6 +5,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tagsnap/common_method/api_activation.dart';
 
+import '../../common_method/api_common.dart';
 import '../../dummy_data/daialog_succes_or_false.dart';
 import '../../dummy_data/dummy_api_data.dart';
 import '../../theme.dart';
@@ -44,6 +45,21 @@ class _ActivationPageState extends State<ActivationPage> {
     super.initState();
     _deviceInfo();
     _loadActivationStatus(); //状態読み込み
+    _loadSavedFields(); // ← 追加
+  }
+
+  //　初期表示時に SharedPreferenceInfo から読み込む
+  Future<void> _loadSavedFields() async {
+    // シングルトンの取得
+    final prefs = SharedPreferenceInfo();
+
+    // コントローラに値をセット
+    deviceNameController.text = prefs.deviceName;
+    activationCodeController.text = prefs.activationCode;
+
+    // isActivated フラグも同時に読み込めるなら
+    // isActivated = prefs.activationCode.isNotEmpty;
+    setState(() {});
   }
 
   Future<void> _loadActivationStatus() async {
@@ -53,10 +69,22 @@ class _ActivationPageState extends State<ActivationPage> {
     });
   }
 
+  //アクティベーション成功時の処理部に、SharedPreferenceInfo を呼び出して保存を行う。
+  Future<void> _onActivateSuccess(String code, String name) async {
+    final prefs = SharedPreferenceInfo();
+
+    // 更新（メモリ上）
+    await prefs.updateInfoValue(code, SharedPreferenceKeys().actCode);
+    await prefs.updateInfoValue(name, SharedPreferenceKeys().devName);
+
+    // 永続化
+    await prefs.writeSharedPreference();
+  }
+
   Future<void> _deviceInfo() async {
     await apiAct.init();
     // final uuid = Uuid();
-    
+
     osType = apiAct.osType;
     osVersion = apiAct.osVersion;
     deviceModel = apiAct.modelName;
@@ -69,11 +97,11 @@ class _ActivationPageState extends State<ActivationPage> {
 
     setState(() {}); // UI更新
   }
-  
-    Future<Map<String, dynamic>?> startActivation() async {
+
+  Future<Map<String, dynamic>?> startActivation() async {
     // アクティベーション処理実行
-    final result = await apiAct.activation(activationCodeController.text,
-        deviceNameController.text);
+    final result = await apiAct.activation(
+        activationCodeController.text, deviceNameController.text);
 
     return result;
   }
@@ -84,10 +112,10 @@ class _ActivationPageState extends State<ActivationPage> {
 
     return result;
   }
-  
 
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
@@ -224,6 +252,13 @@ class _ActivationPageState extends State<ActivationPage> {
     if (null != result && result['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('activated', true);
+
+      //成功時の成功分岐を作成する。
+      await _onActivateSuccess(
+        activationCodeController.text,
+        deviceNameController.text,
+      );
+      setState(() => isActivated = true);
       setState(() => isActivated = true);
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -261,7 +296,9 @@ class _ActivationPageState extends State<ActivationPage> {
               onPressed: () => Navigator.pop(context),
               child: const Text("CANCEL"),
             ),
-        const SizedBox(width: 10,),
+            const SizedBox(
+              width: 10,
+            ),
             TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: Colors.white,

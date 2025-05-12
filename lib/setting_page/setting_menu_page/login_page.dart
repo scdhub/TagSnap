@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../dummy_data/daialog_succes_or_false.dart';
-import '../../dummy_data/dummy_api_data.dart';
+// import '../../dummy_data/dummy_api_data.dart';
 import '../../top_page_design/top_select_page/top_page.dart';
 import 'package:tagsnap/common_method/api_login.dart';
 import 'package:tagsnap/common_method/api_common.dart';
@@ -121,21 +121,25 @@ class _LoginPage extends State<LoginPage> {
             Center(
               child: ElevatedButton(
                 onPressed: () async {
-                // ログイン処理
+                  //ログイン処理
                   final result = await startLogin();
 
-                  //ダイアログを表示し、閉じるまで待つ
-                  await showResultDialog(context, result);
-
-                  //成功時のみ保存＆画面遷移
-                  if (null != result && result['success'] == true) {
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setBool('loggedIn', true);
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                          builder: (_) => const TopPage(title: 'TagSnap')),
-                    );
+                  //成否で処理を分岐
+                  final bool ok = result != null && result['success'] == true;
+                  if (!ok) {
+                    //失敗時のみダイアログを表示
+                    await showResultDialog(context, result);
+                    return; // ここで終わり
                   }
+
+                  //成功時は SharedPreferences に保存して画面遷移
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setBool('loggedIn', true);
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => const TopPage(title: 'TagSnap'),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,

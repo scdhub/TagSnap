@@ -134,9 +134,9 @@ class _SettingPageState extends State<SettingPage> {
 
           SizedBox(height: 20),
 
-          _buildSectionTitle('アクティベーション設定'),
+          _buildSectionTitle('アクティベーション'),
           _buildNavTile(context, 'アクティベーション'),
-          _buildNavTile(context, 'ログイン'),
+          // _buildNavTile(context, 'ログイン'),
 
         ],
       ),
@@ -176,9 +176,10 @@ class _SettingPageState extends State<SettingPage> {
           case 'アクティベーション':
             destination = ActivationPage();
             break;
-          case 'ログイン':
-            destination = LoginPage();
-            break;
+
+          // case 'ログイン':
+          //   destination = LoginPage();
+          //   break;
         }
 
         if (destination != null) {
