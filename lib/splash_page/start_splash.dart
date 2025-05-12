@@ -60,7 +60,7 @@ class _StartSplashState extends State<StartSplash>
   Future<void> _checkAndNavigate() async {
     //final activated = true;
     final activated = (SharedPreferenceInfo().deviceUUID.length > 0) ? true : false; //アクティベーションtrue:済　false:未
-    final loggedIn  = true;
+    final loggedIn  = false;
     //prefs.getBool('loggedIn')  ?? true; //ログインtrue:済　false:未
 
     if (!activated) {
