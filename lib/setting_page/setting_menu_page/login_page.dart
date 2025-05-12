@@ -3,6 +3,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../dummy_data/daialog_succes_or_false.dart';
 import '../../dummy_data/dummy_api_data.dart';
 import '../../top_page_design/top_select_page/top_page.dart';
+import 'package:tagsnap/common_method/api_login.dart';
+import 'package:tagsnap/common_method/api_common.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -14,6 +16,14 @@ class LoginPage extends StatefulWidget {
 class _LoginPage extends State<LoginPage> {
   final TextEditingController _accountController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  Future<Map<String, dynamic>?> startLogin() async {
+    // ログイン処理実行
+    var result = await ApiLogin().loginServer(_accountController.text,
+        _passwordController.text, SharedPreferenceInfo().deviceUUID);
+
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -111,17 +121,14 @@ class _LoginPage extends State<LoginPage> {
             Center(
               child: ElevatedButton(
                 onPressed: () async {
-                  //モック API 呼び出し
-                  final result = await mockLogin(
-                    _accountController.text,
-                    _passwordController.text,
-                  );
+                // ログイン処理
+                  final result = await startLogin();
 
                   //ダイアログを表示し、閉じるまで待つ
                   await showResultDialog(context, result);
 
                   //成功時のみ保存＆画面遷移
-                  if (result['success'] == true) {
+                  if (null != result && result['success'] == true) {
                     final prefs = await SharedPreferences.getInstance();
                     await prefs.setBool('loggedIn', true);
                     Navigator.of(context).pushReplacement(

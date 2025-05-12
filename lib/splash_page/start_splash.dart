@@ -58,8 +58,10 @@ class _StartSplashState extends State<StartSplash>
 
   Future<void> _checkAndNavigate() async {
     final prefs = await SharedPreferences.getInstance();
-    final activated = prefs.getBool('activated') ?? false; //アクティベーションtrue:済　false:未
-    final loggedIn  = prefs.getBool('loggedIn')  ?? true; //ログインtrue:済　false:未
+    final activated = true;
+    //prefs.getBool('activated') ?? false; //アクティベーションtrue:済　false:未
+    final loggedIn  = true;
+    //prefs.getBool('loggedIn')  ?? true; //ログインtrue:済　false:未
 
     if (!activated) {
       Navigator.of(context).pushReplacement(

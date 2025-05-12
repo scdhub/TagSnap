@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'dart:io' show Platform;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tagsnap/common_method/api_activation.dart';
 
 import '../../dummy_data/daialog_succes_or_false.dart';
 import '../../dummy_data/dummy_api_data.dart';
@@ -22,6 +23,8 @@ class _ActivationPageState extends State<ActivationPage> {
   final TextEditingController deviceNameController =
       TextEditingController(); //デバイス名の管理
   bool isActivated = false; // ボタンの反応/無反応
+
+  final ApiActivation apiAct = ApiActivation();
 
   // デバイス情報
   String osType = '';
@@ -44,39 +47,46 @@ class _ActivationPageState extends State<ActivationPage> {
   }
 
   Future<void> _loadActivationStatus() async {
-    final prefs = await SharedPreferences.getInstance();
     setState(() {
-      isActivated = prefs.getBool('activated') ?? false;
+      // _deviceInfo()で初期化済みの情報を参照する
+      isActivated = apiAct.isActivate;
     });
   }
 
   Future<void> _deviceInfo() async {
-    final deviceInfo = DeviceInfoPlugin();
+    await apiAct.init();
     // final uuid = Uuid();
+    
+    osType = apiAct.osType;
+    osVersion = apiAct.osVersion;
+    deviceModel = apiAct.modelName;
+    deviceUuid = apiAct.deviceUUID;
+    appVersion = apiAct.appVer;
 
-    try {
-      if (Platform.isAndroid) {
-        final androidInfo = await deviceInfo.androidInfo;
-        osType = 'Android';
-        osVersion = androidInfo.version.release ?? '';
-        deviceModel = androidInfo.model ?? '';
-        deviceUuid = androidInfo.id ?? '仮のUUID、ビルドバージョン';
-      } else if (Platform.isIOS) {
-        final iosInfo = await deviceInfo.iosInfo;
-        osType = 'iOS';
-        osVersion = iosInfo.systemVersion ?? '';
-        deviceModel = iosInfo.utsname.machine ?? '';
-        deviceUuid = '仮のUUID'; // 実装待ち
-      }
+    // バージョン管理どうしよう
+    //final packageInfo = await PackageInfo.fromPlatform();
+    //appVersion = packageInfo.version;
 
-      final packageInfo = await PackageInfo.fromPlatform();
-      appVersion = packageInfo.version;
-
-      setState(() {}); // UI更新
-    } catch (e) {
-      print('デバイス情報取得エラー: $e');
-    }
+    setState(() {}); // UI更新
   }
+  
+    Future<Map<String, dynamic>?> startActivation() async {
+    // アクティベーション処理実行
+    final result = await apiAct.activation(activationCodeController.text,
+        deviceNameController.text);
+
+    return result;
+  }
+
+  Future<Map<String, dynamic>?> startDeactivate() async {
+    // アクティベーション「は」デプロイなのでここはまだ未実装っぽい
+    return null;
+    // アクティベーション解除処理実行
+    var result = await apiAct.deactivate();
+
+    return result;
+  }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -210,13 +220,10 @@ class _ActivationPageState extends State<ActivationPage> {
 
   Future<void> _showMockSubmit() async {
     // モック API （ダミーAPI）を呼び出し(dummy_api_data.dart)
-    final result = await mockActivate(
-      activationCodeController.text,
-      deviceNameController.text,
-    );
+    final result = await startActivation();
 
     // 成功時は SharedPreferences に保存 & 遷移
-    if (result['success'] == true) {
+    if (null != result && result['success'] == true) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('activated', true);
       setState(() => isActivated = true);
@@ -271,10 +278,10 @@ class _ActivationPageState extends State<ActivationPage> {
               ),
               onPressed: () async {
                 //モック API
-                final result = await mockDeactivate();
+                final result = await startActivation();
 
                 //成功時のみフラグ削除 & state 更新
-                if (result['success'] == true) {
+                if (null != result && true == result['success']) {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.remove('activated');
                   setState(() => isActivated = false);
