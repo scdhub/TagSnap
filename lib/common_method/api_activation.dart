@@ -139,6 +139,13 @@ class ApiActivation {
     try {
       final response = await http.post(url, headers: headers, body: body);
 
+      // SharedPreferenceの情報を空情報で上書き
+      SharedPreferenceInfo().updateInfoValue('',
+          SharedPreferenceKeys().actCode);
+      SharedPreferenceInfo().updateInfoValue('',
+          SharedPreferenceKeys().devUUID);
+      SharedPreferenceInfo().writeSharedPreference();
+
       // 結果分岐(結果内容の詳しい参照は画面側で行う)
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
