@@ -26,14 +26,17 @@ class LoadingPage extends StatefulWidget {
 }
 
 class _LoadingPageState extends State<LoadingPage>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
+    with TickerProviderStateMixin, WidgetsBindingObserver, RouteAware {
+  //タブ２段構成
+  late TabController _outerController;
+  late TabController _innerController;
+
   bool isReading = false;
   bool isNoDoubleRead = false;
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
   String copiedEPC = ""; // コピーしたEPCを保持
   String _currentTab = "EPC";
-
 
   // 各タブのデータ（実際は外部から受け取る）
   List<Map<String, dynamic>> epcList = [];
@@ -77,6 +80,18 @@ class _LoadingPageState extends State<LoadingPage>
         setState(() {}); // buildRow も再描画
       });
 
+    // Outer: タグ, QRコード, バーコード
+    _outerController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        // When switching outer tab, you may reset inner controller or state
+        setState(() {});
+      });
+
+    // Inner: EPC, ビット割付, 紐付け
+    _innerController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        setState(() {});
+      });
 
     _setupScrollSync();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
@@ -97,6 +112,8 @@ class _LoadingPageState extends State<LoadingPage>
     WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
     routeObserver.unsubscribe(this);
     _tabController.dispose();
+    _outerController.dispose();
+    _innerController.dispose();
     _headerScrollController.dispose();
     _listScrollController.dispose();
 
@@ -167,8 +184,7 @@ class _LoadingPageState extends State<LoadingPage>
             "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
             "回数": "1",
           });
-        }
-        else {
+        } else {
           // ─────────────────────────────
           // 重複タグを検出 → チェックOFF時のみ回数をインクリメント
           // ─────────────────────────────
@@ -276,7 +292,6 @@ class _LoadingPageState extends State<LoadingPage>
     }
   }
 
-
   // epcList を更新したあと、必ず呼ぶ
   void refreshHimoduke() {
     himodukeList = epcList.map((e) {
@@ -306,10 +321,7 @@ class _LoadingPageState extends State<LoadingPage>
   // メニューを表示する関数
   void showPopupMenu(BuildContext context, Offset position, int index) async {
     final RenderBox overlay =
-    Overlay
-        .of(context)
-        .context
-        .findRenderObject() as RenderBox;
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final selectedEPC = epcList[index]["EPC"] ?? "";
 
     final result = await showMenu(
@@ -333,8 +345,8 @@ class _LoadingPageState extends State<LoadingPage>
           context,
           MaterialPageRoute(
               builder: (context) => SearchPage(
-                initialSelectedEpc: selectedEPC,
-                initialSelectedIndex: index, // index がそのまま使えるなら渡しておく
+                    initialSelectedEpc: selectedEPC,
+                    initialSelectedIndex: index, // index がそのまま使えるなら渡しておく
                   ))); //（）に引数を持っていく。SearchPageでもうう。
     } else if (result == "led") {
       Navigator.push(
@@ -343,7 +355,6 @@ class _LoadingPageState extends State<LoadingPage>
               builder: (context) => LedPage())); //（）に引数を持っていく。LEDPageでもらう。
     }
   }
-
 
   void selectionDialog(String tabType) {
     showDialog(
@@ -478,22 +489,22 @@ class _LoadingPageState extends State<LoadingPage>
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(
-          bottom: BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
+          bottom:
+              BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
         ),
       ),
       child: Row(
-        children: selectedColumns.entries
-            .where((entry) => entry.value)
-            .map((entry) {
+        children:
+            selectedColumns.entries.where((entry) => entry.value).map((entry) {
           // どの列か判定
           final isEPCcol = entry.key == 'EPC';
           final isNoCol = entry.key == 'No' && _currentTab == "Himoduke";
           // 列ごとに幅を振り分け
           final w = isNoCol
-              ? 50.0               // No 列だけ狭める
+              ? 50.0 // No 列だけ狭める
               : isEPCcol
-              ? cellWidth     // EPC 列は全体幅−他列幅 に合わせた動的セル幅
-              : 100.0;         // それ以外は従来どおり
+                  ? cellWidth // EPC 列は全体幅−他列幅 に合わせた動的セル幅
+                  : 100.0; // それ以外は従来どおり
 
           return Container(
             width: w,
@@ -501,9 +512,7 @@ class _LoadingPageState extends State<LoadingPage>
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Text(
               isHeader ? entry.key : (rowData?[entry.key]?.toString() ?? ""),
-              style: isHeader
-                  ? TextStyle(fontWeight: FontWeight.bold)
-                  : null,
+              style: isHeader ? TextStyle(fontWeight: FontWeight.bold) : null,
               textAlign: TextAlign.center,
             ),
           );
@@ -695,6 +704,14 @@ class _LoadingPageState extends State<LoadingPage>
                   height: 40,
                   child: ElevatedButton(
                     onPressed: () async {
+                      // いま開いている外側タブを判定
+                         final prefix = _outerController.index == 0
+                           ? "タグ情報"
+                           : _outerController.index == 1
+                             ? "QRコード情報"
+                             : "バーコード情報";
+
+
                       List<List<String>> csvData = [];
 
                       if (isEPCTab) {
@@ -715,7 +732,8 @@ class _LoadingPageState extends State<LoadingPage>
                         }
                       }
                       // ここで既存の関数を呼び出すだけ！
-                      await saveCsvWithPicker(context, csvData, "LoadingDate");
+                         await saveCsvWithPicker(context, csvData, prefix);
+                      // await saveCsvWithPicker(context, csvData, "LoadingDate");
                     },
                     style:
                         ElevatedButton.styleFrom(backgroundColor: Colors.white),
@@ -751,27 +769,64 @@ class _LoadingPageState extends State<LoadingPage>
           centerTitle: true,
           backgroundColor: Colors.white,
           elevation: 0,
-          toolbarHeight: 80,
-        ),
-        body: Column(
-          children: [
-            TabBar(
-              controller: _tabController,
-              tabs: [Tab(text: 'EPC'), Tab(text: 'ビット割付'), Tab(text: '紐付け')],
-            ),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  buildTabContent("EPC"),
-                  buildTabContent("Bit"),
-                  buildTabContent("Himoduke"),
+          toolbarHeight: 40,
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(48),
+            child: Container(
+              color: Colors.grey.shade800, // 背景グレー
+              child: TabBar(
+                controller: _outerController,
+                labelColor: Colors.white, // 選択中タブ文字は白
+                unselectedLabelColor: Colors.white70, // 非選択はやや薄めの白
+                indicatorColor: Colors.white, // インジケーターも白
+                tabs: [
+                  Tab(text: 'タグ'),
+                  Tab(text: 'QRコード'),
+                  Tab(text: 'バーコード'),
                 ],
               ),
             ),
+          ),
+        ),
+        body: TabBarView(
+          controller: _outerController,
+          children: [
+            // タグ読み取り
+            _buildInnerTabs(bodyType: 'タグ'),
+            // QRコード（デザインのみ）
+            _buildInnerTabs(bodyType: 'QRコード'),
+            // バーコード（デザインのみ）
+            _buildInnerTabs(bodyType: 'バーコード'),
           ],
         ),
       ),
+    );
+  }
+
+  // Build the nested inner tab structure
+  Widget _buildInnerTabs({required String bodyType}) {
+    final List<String> tabTypes = ["EPC", "Bit", "Himoduke"];
+    return Column(
+      children: [
+        Material(
+          color: Colors.grey,
+          child: TabBar(
+            controller: _innerController,
+            isScrollable: true,
+            tabs: [
+              Tab(text: 'EPC'),
+              Tab(text: 'ビット割付'),
+              Tab(text: '紐付け'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _innerController,
+            children: tabTypes.map((tabType) => buildTabContent(tabType)).toList(),
+          ),
+        ),
+      ],
     );
   }
 
@@ -834,7 +889,7 @@ class _LoadingPageState extends State<LoadingPage>
     final bytes = Uint8List.fromList(utf8.encode(csvString));
     final now = DateTime.now();
     final fn =
-        "${defaultFileName}_${DateFormat('yyyyMMdd_HHmm').format(now)}.csv";
+        "${defaultFileName}_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv";
 
     // 一時ディレクトリに保存
     final dir = await getTemporaryDirectory();

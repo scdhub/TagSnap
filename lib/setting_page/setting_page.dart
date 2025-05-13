@@ -24,18 +24,20 @@ class _SettingPageState extends State<SettingPage> {
   bool isEnglishMode = false;
   bool isPolling = false;
   bool isInventoryDisplay = false;
-  final TextEditingController epcController = TextEditingController(
-      text: 'FFFF');
+  final TextEditingController epcController =
+  TextEditingController(text: 'FFFF');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context,{bool isButtonEnabled = false}) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('設定', style: TextStyle(
-          color: Color(0xFF84848F),
-          fontSize: 25,
-          fontWeight: FontWeight.bold,
-        ),
+        title: Text(
+          '設定',
+          style: TextStyle(
+            color: Color(0xFF84848F),
+            fontSize: 25,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         centerTitle: true,
         backgroundColor: Colors.white,
@@ -61,11 +63,19 @@ class _SettingPageState extends State<SettingPage> {
           // 接続ボタン
           Center(
             child: ElevatedButton(
-              onPressed: () {
+              onPressed: isButtonEnabled
+                  ? () {
                 setState(() {
                   isConnected = !isConnected;
                 });
-              },
+              }
+
+              // onPressed: () {
+              //   setState(() {
+              //     isConnected = !isConnected;
+              //   });
+              // },
+        : null, // ← null にするとボタンが無効になる
               child: Text(isConnected ? '切断' : '接続'),
             ),
           ),
@@ -85,18 +95,18 @@ class _SettingPageState extends State<SettingPage> {
 
           //アプリ設定
           _buildSectionTitle('アプリ設定'),
-          _buildNavTile(context, '紐付け・在庫リスト選択'),
+          _buildNavTile(context, '紐付け・在庫リスト選択',enabled: true),
           _buildNavTile(context, '辞書定義ファイル選択'),
 
           _buildSwitchTile('英語モード', isEnglishMode, (val) {
             setState(() => isEnglishMode = val);
-          }),
+          },enabled: false),
           _buildSwitchTile('ポーリング', isPolling, (val) {
             setState(() => isPolling = val);
-          }),
+          },enabled: false),
           _buildSwitchTile('在庫リスト外表示', isInventoryDisplay, (val) {
             setState(() => isInventoryDisplay = val);
-          }),
+          },enabled: false),
 
           _buildNavTile(context, 'EPCフィルター'),
 
@@ -104,20 +114,24 @@ class _SettingPageState extends State<SettingPage> {
           // EPC入力欄
           TextField(
             controller: epcController,
-            maxLength: 2,
+            maxLength: 4,
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            enabled: false,//無効化する
             decoration: InputDecoration(
               labelText: '床タグEPCヘッダー値（4桁）',
               border: OutlineInputBorder(), //通常時の枠線
-              enabledBorder: OutlineInputBorder( // 非フォーカス時の枠線
+              enabledBorder: OutlineInputBorder(
+                // 非フォーカス時の枠線
                 borderSide: BorderSide(color: Colors.grey),
               ),
-              focusedBorder: OutlineInputBorder( // フォーカス時の枠線
-                borderSide: BorderSide(color: Theme
-                    .of(context)
-                    .colorScheme
-                    .primary, width: 2.0),
+              focusedBorder: OutlineInputBorder(
+                // フォーカス時の枠線
+                borderSide: BorderSide(
+                    color: Theme
+                        .of(context)
+                        .colorScheme
+                        .primary, width: 2.0),
               ),
             ),
           ),
@@ -135,70 +149,87 @@ class _SettingPageState extends State<SettingPage> {
           SizedBox(height: 20),
 
           _buildSectionTitle('アクティベーション'),
-          _buildNavTile(context, 'アクティベーション'),
+          _buildNavTile(context, 'アクティベーション',enabled: true),
           // _buildNavTile(context, 'ログイン'),
-
         ],
       ),
     );
   }
 
   // UI部品
-  Widget _buildNavTile(BuildContext context, String title) {
+  Widget _buildNavTile(BuildContext context, String title,
+      {bool enabled = false}) {
     return ListTile(
-      title: Text(title, style: TextStyle(color: AppTheme.textColor)),
-      trailing: Icon(Icons.arrow_forward_ios, size: 16),
-      onTap: () {
-        Widget? destination;
+        title: Text(
+          title,
+          style: TextStyle(
+            color: enabled ? AppTheme.textColor : Colors.grey, // 無効時はグレー
+          ),
+        ),
+        trailing: Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
+          color: enabled ? Colors.black : Colors.grey, // 無効時はグレー
+        ),
+        onTap: enabled ? () {
+          Widget? destination;
 
-        switch (title) {
-          case 'RF出力':
-            destination = RfPage();
-            break;
-          case 'ビープ音':
-            destination = BeepPage();
-            break;
-          case '読取モード':
-            destination = ReadingModePage();
-            break;
-          case '周波数チャネル':
-            destination = FrequencyPage();
-            break;
-          case '二度読禁止':
-            destination = NoDoubleReadingPage();
-            break;
-          case '設定保存':
-            destination = SavePage();
-            break;
-          case '紐付け・在庫リスト選択':
-            destination = ListselectPage();
-            break;
-          case 'アクティベーション':
-            destination = ActivationPage();
-            break;
+          switch (title) {
+            case 'RF出力':
+              destination = RfPage();
+              break;
+            case 'ビープ音':
+              destination = BeepPage();
+              break;
+            case '読取モード':
+              destination = ReadingModePage();
+              break;
+            case '周波数チャネル':
+              destination = FrequencyPage();
+              break;
+            case '二度読禁止':
+              destination = NoDoubleReadingPage();
+              break;
+            case '設定保存':
+              destination = SavePage();
+              break;
+            case '紐付け・在庫リスト選択':
+              destination = ListselectPage();
+              break;
+            case 'アクティベーション':
+              destination = ActivationPage();
+              break;
 
           // case 'ログイン':
           //   destination = LoginPage();
           //   break;
-        }
+          }
 
-        if (destination != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => destination!),
-          );
+          if (destination != null) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => destination!),
+            );
+          }
         }
-      },
+            : null, // 無効化
     );
   }
 
   // ▼ スイッチUI部品
-  Widget _buildSwitchTile(String title, bool value,
-      ValueChanged<bool> onChanged) {
+  Widget _buildSwitchTile(
+      String title, bool value, ValueChanged<bool> onChanged, {bool enabled = true}) {
     return SwitchListTile(
-      title: Text(title, style: TextStyle(color: AppTheme.textColor),),
+      title: Text(
+        title,
+        style: TextStyle(
+        color: enabled ? AppTheme.textColor : Colors.grey,//無効時はグレー
+        // style: TextStyle(color: AppTheme.textColor),
+      ),
+      ),
       value: value,
-      onChanged: onChanged,
+      onChanged: enabled ? onChanged : null, // 無効時はnull
+      // onChanged: onChanged,
     );
   }
 

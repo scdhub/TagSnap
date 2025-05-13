@@ -6,7 +6,6 @@ import 'theme.dart';
 import 'package:tagsnap/common_method/api_common.dart';
 import 'package:tagsnap/common_method/life_cycle_handler.dart';
 
-
 void main() async {
   // SharedPreferenceの読み取り（シングルトン）
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,12 +24,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false, // デバッグバナーを非表示
-      title: 'TagSnap',
-      theme: AppTheme.LightTheme, // `theme.dart` のテーマを適用
-      home: const StartSplash(title: 'animation',), // スプラッシュ画面を最初に表示
-      navigatorObservers: [routeObserver],
+    return GestureDetector(
+      // フォーカス解除でキーボードを閉じる
+      onTap: () {
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
+      behavior: HitTestBehavior.translucent, // ← これ重要！透明部分もタップを認識させる
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false, // デバッグバナーを非表示
+        title: 'TagSnap',
+        theme: AppTheme.LightTheme, // `theme.dart` のテーマを適用
+        home: const StartSplash(
+          title: 'animation',
+        ), // スプラッシュ画面を最初に表示
+        navigatorObservers: [routeObserver],
+      ),
     );
   }
 }

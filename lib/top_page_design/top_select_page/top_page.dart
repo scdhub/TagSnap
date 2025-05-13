@@ -62,15 +62,75 @@ class _TopPageState extends State<TopPage> {
                 shrinkWrap: true, // サイズを中身に合わせる
                 physics: NeverScrollableScrollPhysics(), // GridView自体のスクロールはしない
                 children: const [
+                  //押下できる
                   TopSettingBtn(),
-                  TopWritingBtn(),
+                  //押下できない
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: TopWritingBtn(),
+                    ),
+                  ),
+                  // TopWritingBtn(),
+
+                  //押下できる
                   TopLoadingBtn(),
-                  TopInventoryBtn(),
+
+                  //押下できない
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: TopInventoryBtn(),
+                    ),
+                  ),
+                  // TopInventoryBtn(),
+
+                  //押下できる
                   TopSearchBtn(),
-                  TopLedBtn(),
-                  TopLocationBtn(),
-                  TopQrBtn(),
-                  TopJudgmentBtn(),
+
+                  //押下できない
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: TopLedBtn(),
+                    ),
+                  ),
+                  //TopLedBtn(),
+
+                  //押下できない
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: TopLocationBtn(),
+                    ),
+                  ),
+                  // TopLocationBtn(),
+
+                  //押下できない
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: TopQrBtn(),
+                    ),
+                  ),
+                  // TopQrBtn(),
+
+                  //押下できない
+                  IgnorePointer(
+                    ignoring: true,
+                    child: Opacity(
+                      opacity: 0.5,
+                      child: TopJudgmentBtn(),
+                    ),
+                  ),
+                  // TopJudgmentBtn(),
+
+                  //押下できる
                   TopTagnavBt(),
                 ],
               ),
