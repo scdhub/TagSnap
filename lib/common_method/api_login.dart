@@ -22,7 +22,7 @@ class ApiLogin {
     final body = jsonEncode({
       'account': username,
       'password': password,
-      'device_uuid': 'cm9kmmewb0000wguc9l6f9kh0',
+      'device_uuid': devUUID,
     });
 
     // ログイン処理実行
