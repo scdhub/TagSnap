@@ -47,16 +47,16 @@ class _SettingPageState extends State<SettingPage> {
       body: ListView(
         padding: EdgeInsets.all(16),
         children: [
-          // ID表示
-          Center(
-            child: Text(
-              'RFD850022362523020778',
-              style: TextStyle(
-                color: AppTheme.textColor,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          // // ID表示
+          // Center(
+          //   child: Text(
+          //     'RFD850022362523020778',
+          //     style: TextStyle(
+          //       color: AppTheme.textColor,
+          //       fontWeight: FontWeight.bold,
+          //     ),
+          //   ),
+          // ),
 
           SizedBox(height: 12),
 

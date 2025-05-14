@@ -18,6 +18,8 @@ import 'package:tagsnap/common_method/taginfo_data.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'Processing/scroll.dart';
+
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
 
@@ -46,6 +48,8 @@ class _LoadingPageState extends State<LoadingPage>
   // ヘッダーとリストのスクロール位置同期用の ScrollController
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
+  //scroll.dart
+  late final ScrollSyncer _scrollSyncer;
 
   // 選択可能なカラム（初期状態は空）
   Map<String, bool> selectedColumns = {};
@@ -80,6 +84,21 @@ class _LoadingPageState extends State<LoadingPage>
         setState(() {}); // buildRow も再描画
       });
 
+    // → 外側タブ(タグ／QR／バーコード)
+    _outerController = TabController(length: 3, vsync: this)
+      ..addListener(() {
+        // 「スワイプやプログラム的切り替え」で index が移ってしまったときも補正
+        if (_outerController.indexIsChanging && _outerController.index != 0) {
+          // 即座にタグ(0)に戻す
+          _outerController.index = 0;
+        }
+        setState(() {});
+      });
+
+    // 内側タブも同様に初期化
+    _innerController = TabController(length: 3, vsync: this)
+      ..addListener(() => setState(() {}));
+
     // Outer: タグ, QRコード, バーコード
     _outerController = TabController(length: 3, vsync: this)
       ..addListener(() {
@@ -93,7 +112,12 @@ class _LoadingPageState extends State<LoadingPage>
         setState(() {});
       });
 
-    _setupScrollSync();
+    // ScrollSyncer でヘッダーとリストのオフセット同期
+    _scrollSyncer = ScrollSyncer(
+      primary: _headerScrollController,
+      secondary: _listScrollController,
+    );
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCsvMapping();
       setState(() {});
@@ -114,6 +138,9 @@ class _LoadingPageState extends State<LoadingPage>
     _tabController.dispose();
     _outerController.dispose();
     _innerController.dispose();
+
+    // ScrollSyncer のリスナー解除
+    _scrollSyncer.dispose();
     _headerScrollController.dispose();
     _listScrollController.dispose();
 
@@ -144,22 +171,6 @@ class _LoadingPageState extends State<LoadingPage>
       await WrapperDeviceLib.stopRFIDScan();
       toggleReading(); // ボタンの状態を更新
     }
-  }
-
-  // ヘッダーとリストのスクロール位置を同期するリスナーを initState 内で登録
-  void _setupScrollSync() {
-    _headerScrollController.addListener(() {
-      if (_listScrollController.hasClients &&
-          _listScrollController.offset != _headerScrollController.offset) {
-        _listScrollController.jumpTo(_headerScrollController.offset);
-      }
-    });
-    _listScrollController.addListener(() {
-      if (_headerScrollController.hasClients &&
-          _headerScrollController.offset != _listScrollController.offset) {
-        _headerScrollController.jumpTo(_listScrollController.offset);
-      }
-    });
   }
 
   // RFID周りの初期化
@@ -705,12 +716,11 @@ class _LoadingPageState extends State<LoadingPage>
                   child: ElevatedButton(
                     onPressed: () async {
                       // いま開いている外側タブを判定
-                         final prefix = _outerController.index == 0
-                           ? "タグ情報"
-                           : _outerController.index == 1
-                             ? "QRコード情報"
-                             : "バーコード情報";
-
+                      final prefix = _outerController.index == 0
+                          ? "タグ情報"
+                          : _outerController.index == 1
+                              ? "QRコード情報"
+                              : "バーコード情報";
 
                       List<List<String>> csvData = [];
 
@@ -732,7 +742,7 @@ class _LoadingPageState extends State<LoadingPage>
                         }
                       }
                       // ここで既存の関数を呼び出すだけ！
-                         await saveCsvWithPicker(context, csvData, prefix);
+                      await saveCsvWithPicker(context, csvData, prefix);
                       // await saveCsvWithPicker(context, csvData, "LoadingDate");
                     },
                     style:
@@ -762,7 +772,7 @@ class _LoadingPageState extends State<LoadingPage>
             '読込み',
             style: TextStyle(
               color: Color(0xFF84848F),
-              fontSize: 25,
+              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -779,6 +789,13 @@ class _LoadingPageState extends State<LoadingPage>
                 labelColor: Colors.white, // 選択中タブ文字は白
                 unselectedLabelColor: Colors.white70, // 非選択はやや薄めの白
                 indicatorColor: Colors.white, // インジケーターも白
+                // タップされたときにも必ずインデックス補正
+                onTap: (index) {
+                  if (index != 0) {
+                    // タグ以外は選べない
+                    _outerController.index = 0;
+                  }
+                },
                 tabs: [
                   Tab(text: 'タグ'),
                   Tab(text: 'QRコード'),
@@ -788,8 +805,10 @@ class _LoadingPageState extends State<LoadingPage>
             ),
           ),
         ),
+        // スワイプ不可＋ controller 側で補正済み
         body: TabBarView(
           controller: _outerController,
+          physics: NeverScrollableScrollPhysics(),
           children: [
             // タグ読み取り
             _buildInnerTabs(bodyType: 'タグ'),
@@ -823,7 +842,8 @@ class _LoadingPageState extends State<LoadingPage>
         Expanded(
           child: TabBarView(
             controller: _innerController,
-            children: tabTypes.map((tabType) => buildTabContent(tabType)).toList(),
+            children:
+                tabTypes.map((tabType) => buildTabContent(tabType)).toList(),
           ),
         ),
       ],
