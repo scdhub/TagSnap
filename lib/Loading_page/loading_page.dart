@@ -344,7 +344,9 @@ class _LoadingPageState extends State<LoadingPage>
       items: [
         PopupMenuItem(value: "search", child: Text("探索")),
         PopupMenuItem(value: "copy", child: Text("コピー")),
-        PopupMenuItem(value: "led", child: Text("LED")),
+        // 未実装機能無効化対応のためコメントアウト&一時対応に差し替え
+        //PopupMenuItem(value: "led", child: Text("LED")),
+        PopupMenuItem(value: "led",enabled: false, child: Text("LED"),),
       ],
     );
 

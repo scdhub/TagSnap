@@ -56,7 +56,7 @@ class AppTheme {
       // secondaryColor の上に表示する文字色は白
       surface: Colors.white,
       // サーフェスカラー（背景色など）
-      onSurface: textColor, // サーフェス上の文字色
+      onSurface: Colors.black87, // サーフェス上の文字色
     ),
 
     scaffoldBackgroundColor: primaryColor,
