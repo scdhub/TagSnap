@@ -48,6 +48,7 @@ class _LoadingPageState extends State<LoadingPage>
   // ヘッダーとリストのスクロール位置同期用の ScrollController
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
+
   //scroll.dart
   late final ScrollSyncer _scrollSyncer;
 
@@ -87,13 +88,16 @@ class _LoadingPageState extends State<LoadingPage>
     // → 外側タブ(タグ／QR／バーコード)
     _outerController = TabController(length: 3, vsync: this)
       ..addListener(() {
-        // 「スワイプやプログラム的切り替え」で index が移ってしまったときも補正
-        if (_outerController.indexIsChanging && _outerController.index != 0) {
-          // 即座にタグ(0)に戻す
-          _outerController.index = 0;
-        }
         setState(() {});
       });
+    // ..addListener(() {
+    //   // 「スワイプやプログラム的切り替え」で index が移ってしまったときも補正
+    //   if (_outerController.indexIsChanging && _outerController.index != 0) {
+    //     // 即座にタグ(0)に戻す
+    //     _outerController.index = 0;
+    //   }
+    //   setState(() {});
+    // });
 
     // 内側タブも同様に初期化
     _innerController = TabController(length: 3, vsync: this)
@@ -120,6 +124,9 @@ class _LoadingPageState extends State<LoadingPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCsvMapping();
+      // epcList はまだ空でも、ここで selectedColumnsMap を初期化
+      updateData(epcList, "EPC");
+      updateData(himodukeList, "Himoduke");
       setState(() {});
     });
     initializeRFID();
@@ -332,7 +339,10 @@ class _LoadingPageState extends State<LoadingPage>
   // メニューを表示する関数
   void showPopupMenu(BuildContext context, Offset position, int index) async {
     final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    Overlay
+        .of(context)
+        .context
+        .findRenderObject() as RenderBox;
     final selectedEPC = epcList[index]["EPC"] ?? "";
 
     final result = await showMenu(
@@ -346,7 +356,11 @@ class _LoadingPageState extends State<LoadingPage>
         PopupMenuItem(value: "copy", child: Text("コピー")),
         // 未実装機能無効化対応のためコメントアウト&一時対応に差し替え
         //PopupMenuItem(value: "led", child: Text("LED")),
-        PopupMenuItem(value: "led",enabled: false, child: Text("LED"),),
+        PopupMenuItem(
+          value: "led",
+          enabled: false,
+          child: Text("LED"),
+        ),
       ],
     );
 
@@ -357,7 +371,8 @@ class _LoadingPageState extends State<LoadingPage>
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => SearchPage(
+              builder: (context) =>
+                  SearchPage(
                     initialSelectedEpc: selectedEPC,
                     initialSelectedIndex: index, // index がそのまま使えるなら渡しておく
                   ))); //（）に引数を持っていく。SearchPageでもうう。
@@ -396,7 +411,7 @@ class _LoadingPageState extends State<LoadingPage>
                           onPressed: () {
                             setState(() {
                               selectedColumns.updateAll(
-                                  (key, value) => false); // すべてのチェックボックスを解除
+                                      (key, value) => false); // すべてのチェックボックスを解除
                             });
                             setStateDialog(() {});
                           },
@@ -417,7 +432,7 @@ class _LoadingPageState extends State<LoadingPage>
                           onPressed: () {
                             setState(() {
                               selectedColumns.updateAll(
-                                  (key, value) => true); // すべてのチェックボックスを選択
+                                      (key, value) => true); // すべてのチェックボックスを選択
                             });
                             setStateDialog(() {});
                           },
@@ -438,7 +453,7 @@ class _LoadingPageState extends State<LoadingPage>
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children:
-                    selectedColumns.keys.where((key) => key != "回数").map((key) {
+                selectedColumns.keys.where((key) => key != "回数").map((key) {
                   return CheckboxListTile(
                     title: Text(key),
                     value: selectedColumns[key],
@@ -458,7 +473,7 @@ class _LoadingPageState extends State<LoadingPage>
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white, // 文字を白
                       backgroundColor:
-                          AppTheme.confirmDialogButtonColor, // 背景色を青系
+                      AppTheme.confirmDialogButtonColor, // 背景色を青系
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8), // 角を少し丸くする
                         side: BorderSide(
@@ -474,7 +489,7 @@ class _LoadingPageState extends State<LoadingPage>
                     child: Text(
                       "OK",
                       style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -486,29 +501,28 @@ class _LoadingPageState extends State<LoadingPage>
     );
   }
 
-  Widget buildRow(
-    Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
-    Map<String, bool> selectedColumns, {
-    bool isHeader = false, // trueならヘッダー行
-    bool isSelected = false, // 選択状態（背景色を変える用）
-    double cellWidth = 100.0, //リストの幅
-  }) {
+  Widget buildRow(Map<String, dynamic>? rowData, // nullならヘッダーとして扱う
+      Map<String, bool> selectedColumns, {
+        bool isHeader = false, // trueならヘッダー行
+        bool isSelected = false, // 選択状態（背景色を変える用）
+        double cellWidth = 100.0, //リストの幅
+      }) {
     final bgColor = isHeader
         ? Colors.grey.shade300
         : isSelected
-            ? Colors.lightBlueAccent.withOpacity(0.3)
-            : Colors.white;
+        ? Colors.lightBlueAccent.withOpacity(0.3)
+        : Colors.white;
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
         border: Border(
           bottom:
-              BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
+          BorderSide(color: isHeader ? Colors.grey : Colors.grey.shade300),
         ),
       ),
       child: Row(
         children:
-            selectedColumns.entries.where((entry) => entry.value).map((entry) {
+        selectedColumns.entries.where((entry) => entry.value).map((entry) {
           // どの列か判定
           final isEPCcol = entry.key == 'EPC';
           final isNoCol = entry.key == 'No' && _currentTab == "Himoduke";
@@ -516,8 +530,8 @@ class _LoadingPageState extends State<LoadingPage>
           final w = isNoCol
               ? 50.0 // No 列だけ狭める
               : isEPCcol
-                  ? cellWidth // EPC 列は全体幅−他列幅 に合わせた動的セル幅
-                  : 100.0; // それ以外は従来どおり
+              ? cellWidth // EPC 列は全体幅−他列幅 に合わせた動的セル幅
+              : 100.0; // それ以外は従来どおり
 
           return Container(
             width: w,
@@ -544,39 +558,42 @@ class _LoadingPageState extends State<LoadingPage>
       csvData.addAll(epcList.map((e) => [e["EPC"]?.toString() ?? ""]));
     } else {
       csvData.add(["No", "EPC", "種別", "管理番号"]);
-      csvData.addAll(himodukeList.map((e) => [
-            e["No"]?.toString() ?? "",
-            e["EPC"]?.toString() ?? "",
-            e["種別"]?.toString() ?? "",
-            e["管理番号"]?.toString() ?? "",
-          ]));
+      csvData.addAll(himodukeList.map((e) =>
+      [
+        e["No"]?.toString() ?? "",
+        e["EPC"]?.toString() ?? "",
+        e["種別"]?.toString() ?? "",
+        e["管理番号"]?.toString() ?? "",
+      ]));
     }
     return csvData;
   }
 
   // buildTabContentメソッド
   Widget buildTabContent(String tabType) {
+    // 今どの外側タブか判定
+    final bool isTagTab = (_outerController.index == 0);
+    // 今どの内側タブか判定 (EPC タブかどうか)
     final bool isEPCTab = (tabType == "EPC");
-    // EPCタブなら EPC＋回数 を１つの文字列にまとめたリストを作る。
-    final List<Map<String, dynamic>> dataList = isEPCTab
-        ? epcList
-            .map((e) => {
-                  "EPC": e['EPC'],
-                  "回数": e['回数'].toString(),
-                })
-            .toList()
-        : (tabType == "Bit" ? bitList : himodukeList);
 
-    var selectedColumns = selectedColumnsMap[tabType] ?? {};
-    int tagCount = dataList.length > 9999 ? 9999 : dataList.length;
+    // データリストを取得（タグタブ以外は空に）
+    final List<Map<String, dynamic>> dataList = isTagTab
+        ? (tabType == "EPC"
+        ? epcList.map((e) => {"EPC": e['EPC'], "回数": e['回数']}).toList()
+        : tabType == "Bit"
+        ? bitList
+        : himodukeList)
+        : [];
+
+    // 以下は元のまま。selectedColumnsMap やスクロール幅計算などもそのまま使えます。
+    final selectedColumns = selectedColumnsMap[tabType]!;
+    final int rowCount = dataList.length;
     final double screenWidth = MediaQuery.of(context).size.width;
-    final int columnCount =
-        selectedColumns.entries.where((entry) => entry.value).length;
-    final double calculatedWidth = columnCount * 100.0;
-    final double finalWidth =
-        calculatedWidth < screenWidth ? screenWidth : calculatedWidth;
-    // EPCタブなら「EPC 列」の幅を (テーブル全体幅 − 回数列幅100px) にする
-    final double cellWidth = isEPCTab ? (finalWidth - 100.0) : 100.0;
+    final int columnCount = selectedColumns.values.where((v) => v).length;
+    final double totalWidth = columnCount * 100.0;
+    final double finalWidth = totalWidth < screenWidth ? screenWidth : totalWidth;
+    final double cellWidth = (tabType == "EPC") ? (finalWidth - 100.0) : 100.0;
+
 
     return Column(
       children: [
@@ -587,20 +604,18 @@ class _LoadingPageState extends State<LoadingPage>
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Color(0xFF5FD970)),
-                onPressed: () {
-                  setState(() {
-                    // タブごとに実際のリストをクリア
-                    if (isEPCTab) {
-                      epcList.clear();
-                    } else {
-                      himodukeList.clear();
-                    }
-                    tagList.clear();
-
-                    // UI反映のため updateData を呼ぶ
-                    updateData(epcList, "EPC");
-                    updateData(himodukeList, "Himoduke");
-                  });
+                onPressed: () async {
+                  // スキャン中なら停止
+                  if (isReading) {
+                    await WrapperDeviceLib.stopRFIDScan();
+                    toggleReading(); // ボタン表示も止め状態に合わせる
+                  }
+                  // クリア処理
+                  epcList.clear();
+                  himodukeList.clear();
+                  tagList.clear();
+                  updateData(epcList, "EPC");
+                  updateData(himodukeList, "Himoduke");
                 },
                 child: Text('クリア', style: TextStyle(color: Colors.white)),
               ),
@@ -626,8 +641,9 @@ class _LoadingPageState extends State<LoadingPage>
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orangeAccent),
-                onPressed: isEPCTab ? null : () => selectionDialog(tabType),
-                child: Text('表示項目選択', style: TextStyle(color: Colors.white)),
+                onPressed:() => selectionDialog(tabType),
+                child: Text(
+                    '表示項目選択', style: TextStyle(color: Colors.white)),
               ),
             ],
           ),
@@ -656,7 +672,7 @@ class _LoadingPageState extends State<LoadingPage>
               width: finalWidth,
               height: 300.0,
               child: ListView.builder(
-                itemCount: tagCount,
+                itemCount: rowCount,
                 itemBuilder: (context, index) {
                   bool isSelected = (index == selectedIndex);
 
@@ -691,7 +707,7 @@ class _LoadingPageState extends State<LoadingPage>
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               //タグ数（左）
-              Text('タグ数：$tagCount',
+              Text('タグ数：$rowCount',
                   style: TextStyle(fontSize: 16, color: Colors.white)),
 
               // 読み込みボタン
@@ -699,10 +715,16 @@ class _LoadingPageState extends State<LoadingPage>
                 width: 170,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: readRFIDStartStop,
+                  //修正
+                  // onPressed: readRFIDStartStop,
+
+                  // _outerController.index が 0 のとき（タグページ）のみ有効化
+                  onPressed:
+                  (_outerController.index == 0) ? readRFIDStartStop : null,
                   style: ElevatedButton.styleFrom(
+                    // disable 時は自動的にグレイアウトされます
                     backgroundColor:
-                        isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                    isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
                   ),
                   child: Text(
                     isReading ? '停止' : '読込み開始',
@@ -716,13 +738,17 @@ class _LoadingPageState extends State<LoadingPage>
                   width: 60,
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: () async {
+                    // onPressed: () async {
+
+                    //0があるときは保存ボタンはグレーになる。
+                    onPressed: (_outerController.index == 0)
+                        ? () async {
                       // いま開いている外側タブを判定
                       final prefix = _outerController.index == 0
                           ? "タグ情報"
                           : _outerController.index == 1
-                              ? "QRコード情報"
-                              : "バーコード情報";
+                          ? "QRコード情報"
+                          : "バーコード情報";
 
                       List<List<String>> csvData = [];
 
@@ -746,12 +772,11 @@ class _LoadingPageState extends State<LoadingPage>
                       // ここで既存の関数を呼び出すだけ！
                       await saveCsvWithPicker(context, csvData, prefix);
                       // await saveCsvWithPicker(context, csvData, "LoadingDate");
-                    },
+                    }
+                        : null,
                     style:
-                        ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                    child: Text('保存',
-                        style:
-                            TextStyle(color: Colors.blueAccent, fontSize: 12)),
+                    ElevatedButton.styleFrom(backgroundColor: Colors.white),
+                    child: Text('保存', style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
                   )),
             ],
           ),
@@ -788,15 +813,21 @@ class _LoadingPageState extends State<LoadingPage>
               color: Colors.grey.shade800, // 背景グレー
               child: TabBar(
                 controller: _outerController,
-                labelColor: Colors.white, // 選択中タブ文字は白
-                unselectedLabelColor: Colors.white70, // 非選択はやや薄めの白
-                indicatorColor: Colors.white, // インジケーターも白
+                labelColor: Colors.white,
+                // 選択中タブ文字は白
+                unselectedLabelColor: Colors.white70,
+                // 非選択はやや薄めの白
+                indicatorColor: Colors.white,
+                // インジケーターも白
                 // タップされたときにも必ずインデックス補正
                 onTap: (index) {
                   if (index != 0) {
-                    // タグ以外は選べない
-                    _outerController.index = 0;
+                    // そのまま index を受け入れる（何もしない）
+                    _outerController.index = index; // TabBar が自動で切り替えてくれる
                   }
+                  //   // タグ以外は選べない(タップしても反応なしにする)
+                  //   _outerController.index = 0;
+                  // }
                 },
                 tabs: [
                   Tab(text: 'タグ'),
@@ -825,160 +856,173 @@ class _LoadingPageState extends State<LoadingPage>
   }
 
   // Build the nested inner tab structure
-  Widget _buildInnerTabs({required String bodyType}) {
-    final List<String> tabTypes = ["EPC", "Bit", "Himoduke"];
-    return Column(
-      children: [
-        Material(
-          color: Colors.grey,
-          child: TabBar(
-            controller: _innerController,
-            isScrollable: true,
-            tabs: [
-              Tab(text: 'EPC'),
-              Tab(text: 'ビット割付'),
-              Tab(text: '紐付け'),
-            ],
-          ),
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _innerController,
-            children:
-                tabTypes.map((tabType) => buildTabContent(tabType)).toList(),
-          ),
-        ),
-      ],
-    );
-  }
+    Widget _buildInnerTabs({required String bodyType}) {
+      // タブラベルは固定
+      final tabTypes = ["EPC", "Bit", "Himoduke"];
 
-  // コピー完了ダイアログ
-  void showCopyDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            "確認",
-            textAlign: TextAlign.center, // タイトルを中央揃え
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-            child: Text(
-              "EPCをコピーしました。",
-              style: AppTheme.confirmDialogTheme.contentTextStyle,
+      return Column(
+        children: [
+          // 内側タブバー
+          Material(
+            color: Colors.grey,
+            child: TabBar(
+              controller: _innerController,
+              isScrollable: true,
+              tabs: [
+                Tab(text: 'EPC'),
+                Tab(text: 'ビット割付'),
+                Tab(text: '紐付け'),
+              ],
             ),
           ),
-          actions: [
-            Align(
-              alignment: Alignment.center, // OKボタンを真ん中に配置
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white, // 文字を白
-                  backgroundColor: AppTheme.confirmDialogButtonColor, // 背景色を青系
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                    side: BorderSide(
-                        color: AppTheme.confirmDialogBorderColor,
-                        width: 2), // 明るい枠線
-                  ),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10), // 余白を適切に
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: Text(
-                  "OK",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+
+          // データ表示部（タグと同じデザイン）
+          Expanded(
+            child: TabBarView(
+              controller: _innerController,
+              children: tabTypes.map((tabType) {
+                // buildTabContent 内の
+                //   onPressed: (_outerController.index == 0) ? readRFIDStartStop : null
+                //   onPressed: (_outerController.index == 0) ? save… : null
+                // が働いて、QR／バーコードタブではボタンが無効になります。
+                return buildTabContent(tabType);
+              }).toList(),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // コピー完了ダイアログ
+    void showCopyDialog() {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(
+              "確認",
+              textAlign: TextAlign.center, // タイトルを中央揃え
+              style: AppTheme.confirmDialogTheme.titleTextStyle,
+            ),
+            content: Padding(
+              padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+              child: Text(
+                "EPCをコピーしました。",
+                textAlign: TextAlign.center,
+                style: AppTheme.confirmDialogTheme.contentTextStyle,
               ),
             ),
-          ],
-        );
-      },
-    );
-  }
+            actions: [
+              Align(
+                alignment: Alignment.center, // OKボタンを真ん中に配置
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    // 文字を白
+                    backgroundColor: AppTheme.confirmDialogButtonColor,
+                    // 背景色を青系
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+                      side: BorderSide(
+                          color: AppTheme.confirmDialogBorderColor,
+                          width: 2), // 明るい枠線
+                    ),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10), // 余白を適切に
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: Text(
+                    "OK",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
 
 //保存処理機能
-  Future<void> saveCsvWithPicker(
-    BuildContext context,
-    List<List<String>> csvData,
-    defaultFileName,
-  ) async {
-    final csvString = const ListToCsvConverter().convert(csvData);
-    final bytes = Uint8List.fromList(utf8.encode(csvString));
-    final now = DateTime.now();
-    final fn =
-        "${defaultFileName}_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv";
+    Future<void> saveCsvWithPicker(BuildContext context,
+        List<List<String>> csvData,
+        defaultFileName,) async {
+      final csvString = const ListToCsvConverter().convert(csvData);
+      final bytes = Uint8List.fromList(utf8.encode(csvString));
+      final now = DateTime.now();
+      final fn =
+          "${defaultFileName}_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv";
 
-    // 一時ディレクトリに保存
-    final dir = await getTemporaryDirectory();
-    final file = File("${dir.path}/$fn");
-    await file.writeAsBytes(bytes);
+      // 一時ディレクトリに保存
+      final dir = await getTemporaryDirectory();
+      final file = File("${dir.path}/$fn");
+      await file.writeAsBytes(bytes);
 
-    // ファイル保存ダイアログを表示
-    final params = SaveFileDialogParams(
-      sourceFilePath: file.path,
-      fileName: fn,
-    );
+      // ファイル保存ダイアログを表示
+      final params = SaveFileDialogParams(
+        sourceFilePath: file.path,
+        fileName: fn,
+      );
 
-    final savedPath = await FlutterFileDialog.saveFile(params: params);
+      final savedPath = await FlutterFileDialog.saveFile(params: params);
 
-    if (savedPath != null) {
-      lodinginfoSaveDialog(); // ←ここで表示！
-    } else {
-      print("保存キャンセルまたは失敗");
+      if (savedPath != null) {
+        lodinginfoSaveDialog(); // ←ここで表示！
+      } else {
+        print("保存キャンセルまたは失敗");
+      }
     }
-  }
 
-  void lodinginfoSaveDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            "確認",
-            textAlign: TextAlign.center, // タイトルを中央揃え
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-            child: Text(
-              "リストを保存しました。",
-              textAlign: TextAlign.center, // コンテンツを中央揃え
-              style: AppTheme.confirmDialogTheme.contentTextStyle,
+    void lodinginfoSaveDialog() {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(
+              "確認",
+              textAlign: TextAlign.center, // タイトルを中央揃え
+              style: AppTheme.confirmDialogTheme.titleTextStyle,
             ),
-          ),
-          actions: [
-            Align(
-              alignment: Alignment.center, // OKボタンを真ん中に配置
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white, // 文字を白
-                  backgroundColor: AppTheme.confirmDialogButtonColor, // 背景色を青系
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                    side: BorderSide(
-                        color: AppTheme.confirmDialogBorderColor,
-                        width: 2), // 明るい枠線
-                  ),
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 20, vertical: 10), // 余白を適切に
-                ),
-                onPressed: () {
-                  Navigator.pop(context); // ダイアログを閉じる
-                },
-                child: Text(
-                  "OK",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+            content: Padding(
+              padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+              child: Text(
+                "リストを保存しました。",
+                textAlign: TextAlign.center, // コンテンツを中央揃え
+                style: AppTheme.confirmDialogTheme.contentTextStyle,
               ),
             ),
-          ],
-        );
-      },
-    );
+            actions: [
+              Align(
+                alignment: Alignment.center, // OKボタンを真ん中に配置
+                child: TextButton(
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    // 文字を白
+                    backgroundColor: AppTheme.confirmDialogButtonColor,
+                    // 背景色を青系
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+                      side: BorderSide(
+                          color: AppTheme.confirmDialogBorderColor,
+                          width: 2), // 明るい枠線
+                    ),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10), // 余白を適切に
+                  ),
+                  onPressed: () {
+                    Navigator.pop(context); // ダイアログを閉じる
+                  },
+                  child: Text(
+                    "OK",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
   }
-}

@@ -59,6 +59,10 @@ class AppTheme {
       onSurface: Colors.black87, // サーフェス上の文字色
     ),
 
+    textSelectionTheme: TextSelectionThemeData(
+      selectionHandleColor: Colors.black87, // ← これで丸い部分の色が変わる
+    ),
+
     scaffoldBackgroundColor: primaryColor,
     fontFamily: 'NotoSansJP',
     //テキスト全体のフォント

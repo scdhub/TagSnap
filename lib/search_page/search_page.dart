@@ -968,6 +968,7 @@ class _SearchPageState extends State<SearchPage>
             padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
             child: Text(
               "EPCをコピーしました。",
+              textAlign: TextAlign.center,
               style: AppTheme.confirmDialogTheme.contentTextStyle,
             ),
           ),

@@ -58,29 +58,28 @@ class _SettingPageState extends State<SettingPage> {
           //   ),
           // ),
 
-          SizedBox(height: 12),
 
-          // 接続ボタン
-          Center(
-            child: ElevatedButton(
-              onPressed: isButtonEnabled
-                  ? () {
-                setState(() {
-                  isConnected = !isConnected;
-                });
-              }
+        //   // 接続ボタン
+        //   Center(
+        //     child: ElevatedButton(
+        //       onPressed: isButtonEnabled
+        //           ? () {
+        //         setState(() {
+        //           isConnected = !isConnected;
+        //         });
+        //       }
+        //
+        //       // onPressed: () {
+        //       //   setState(() {
+        //       //     isConnected = !isConnected;
+        //       //   });
+        //       // },
+        // : null, // ← null にするとボタンが無効になる
+        //       child: Text(isConnected ? '切断' : '接続'),
+        //     ),
+        //   ),
 
-              // onPressed: () {
-              //   setState(() {
-              //     isConnected = !isConnected;
-              //   });
-              // },
-        : null, // ← null にするとボタンが無効になる
-              child: Text(isConnected ? '切断' : '接続'),
-            ),
-          ),
-
-          SizedBox(height: 20),
+          // SizedBox(height: 20),
 
           // リーダー設定項目（リストタイルで遷移）
           _buildSectionTitle('リーダー設定'),
