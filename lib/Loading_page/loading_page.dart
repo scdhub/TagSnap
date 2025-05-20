@@ -1,13 +1,14 @@
-import 'dart:convert';
+// import 'dart:convert';
 import 'package:csv/csv.dart';
 // import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_file_dialog/flutter_file_dialog.dart';
-import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
+// import 'package:flutter_file_dialog/flutter_file_dialog.dart';
+// import 'package:intl/intl.dart';
+// import 'package:path_provider/path_provider.dart';
 import 'dart:async';
+import '../common_screen_processing/scroll.dart';
 import '../led_page/led_page.dart';
 import '../main.dart'; // インポートして自動停止ボタンを切り替える
 import '../search_page/search_page.dart';
@@ -18,7 +19,8 @@ import 'package:tagsnap/common_method/taginfo_data.dart';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'Processing/scroll.dart';
+import 'Processing/csvdata_save.dart';
+
 
 class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
@@ -44,6 +46,17 @@ class _LoadingPageState extends State<LoadingPage>
   List<Map<String, dynamic>> epcList = [];
   List<Map<String, dynamic>> bitList = [];
   List<Map<String, dynamic>> himodukeList = [];
+
+  // QR とバーコード用の空リストを追加
+  List<Map<String, dynamic>> qrList = [];
+  List<Map<String, dynamic>> qrBitList = [];
+  List<Map<String, dynamic>> himodukeQrList = [];
+  List<Map<String, dynamic>> barcodeList = [];
+  List<Map<String, dynamic>> bcBitList = [];
+  List<Map<String, dynamic>> himodukeBcList = [];
+
+  // _LoadingPageState のフィールド
+  final _csvSaver = CsvSaver();
 
   // ヘッダーとリストのスクロール位置同期用の ScrollController
   final ScrollController _headerScrollController = ScrollController();
@@ -130,6 +143,29 @@ class _LoadingPageState extends State<LoadingPage>
       setState(() {});
     });
     initializeRFID();
+  }
+
+  // CSV マッピング読み込みを全タブ共通で no-arg に変更
+  Future<void> _loadCsvMapping() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'managementCsvPath';
+    final csvPath = prefs.getString(key);
+    if (csvPath != null && await File(csvPath).exists()) {
+      final content = await File(csvPath).readAsString();
+      final rows =
+      const CsvToListConverter(eol: '\r\n', shouldParseNumbers: false)
+          .convert(content);
+      managementMap.clear();
+      for (var i = 1; i < rows.length; i++) {
+        final cols = rows[i].map((c) => c.toString().trim()).toList();
+        managementMap[cols[1]] = {
+          '種別': cols[2],
+          '管理番号': cols[3],
+        };
+      }
+    } else {
+      managementMap.clear();
+    }
   }
 
   @override
@@ -287,28 +323,29 @@ class _LoadingPageState extends State<LoadingPage>
     });
   }
 
-  // 管理用 CSV 読み込み
-  Future<void> _loadCsvMapping() async {
-    final prefs = await SharedPreferences.getInstance();
-    final csvPath = prefs.getString('managementCsvPath');
-    if (csvPath != null && await File(csvPath).exists()) {
-      final content = await File(csvPath).readAsString();
-      final rows = const CsvToListConverter(
-        eol: '\r\n',
-        shouldParseNumbers: false,
-      ).convert(content);
-      if (rows.length < 2) return;
-      managementMap.clear();
-      for (var i = 1; i < rows.length; i++) {
-        final cols = rows[i].map((c) => c.toString().trim()).toList();
-        managementMap[cols[1]] = {
-          '種別': cols[2],
-          '管理番号': cols[3],
-        };
-      }
-      print('管理CSV 読み込み完了: ${managementMap.length} 件');
-    }
-  }
+  // // 管理用 CSV 読み込み
+  // Future<void> _loadCsvMapping(String bodyType) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   // タブごとに異なるキーを読む
+  //   final key = 'managementCsvPath_$bodyType';
+  //   final csvPath = prefs.getString(key);
+  //   if (csvPath != null && await File(csvPath).exists()) {
+  //     final content = await File(csvPath).readAsString();
+  //     final rows = const CsvToListConverter(eol: '\r\n', shouldParseNumbers: false)
+  //         .convert(content);
+  //     // 同じロジックで managementMap を作成
+  //     managementMap.clear();
+  //     for (var i = 1; i < rows.length; i++) {
+  //       final cols = rows[i].map((c) => c.toString().trim()).toList();
+  //       managementMap[cols[1]] = {
+  //         '種別': cols[2],
+  //         '管理番号': cols[3],
+  //       };
+  //     }
+  //   } else {
+  //     managementMap.clear();
+  //   }
+  // }
 
   // epcList を更新したあと、必ず呼ぶ
   void refreshHimoduke() {
@@ -572,28 +609,64 @@ class _LoadingPageState extends State<LoadingPage>
   // buildTabContentメソッド
   Widget buildTabContent(String tabType) {
     // 今どの外側タブか判定
-    final bool isTagTab = (_outerController.index == 0);
-    // 今どの内側タブか判定 (EPC タブかどうか)
-    final bool isEPCTab = (tabType == "EPC");
+    // 外側タブ(タグ/QR/バーコード)の判定
+    final outer = _outerController.index;
+    final isTagTab = outer == 0;
+    final isQrTab = outer == 1;
+    final isBcTab = outer == 2;
+    final isEpcTab = tabType == 'EPC';
+    final isBitTab = tabType == 'Bit';
+    final isHimodukeTab = tabType == 'Himoduke';
 
-    // データリストを取得（タグタブ以外は空に）
-    final List<Map<String, dynamic>> dataList = isTagTab
-        ? (tabType == "EPC"
-        ? epcList.map((e) => {"EPC": e['EPC'], "回数": e['回数']}).toList()
-        : tabType == "Bit"
-        ? bitList
-        : himodukeList)
-        : [];
+    // 各リスト選択
+    List<Map<String, dynamic>> rawList;
+    if (isTagTab) {
+      rawList = isEpcTab
+          ? epcList.map((e) => {'EPC': e['EPC'], '回数': e['回数']}).toList()
+          : isBitTab
+          ? bitList
+          : himodukeList;
+    } else if (isQrTab) {
+      rawList = isEpcTab
+          ? qrList.map((e) => {'Data': e['data'], '回数': e['count']}).toList()
+          : isBitTab
+          ? qrBitList
+          : himodukeQrList;
+    } else {
+      rawList = isEpcTab
+          ? barcodeList
+          .map((e) => {'Data': e['data'], '回数': e['count']})
+          .toList()
+          : isBitTab
+          ? bcBitList
+          : himodukeBcList;
+    }
+
+    // managementMap による紐付け
+    final dataList = rawList.map((e) {
+      final key = isEpcTab ? (isTagTab ? e['EPC'] : e['Data']) : e['EPC'];
+      final info = managementMap[key] ?? {};
+      return {
+        ...e,
+        '種別': info['種別'] ?? '',
+        '管理番号': info['管理番号'] ?? ''
+      };
+    }).toList();
 
     // 以下は元のまま。selectedColumnsMap やスクロール幅計算などもそのまま使えます。
     final selectedColumns = selectedColumnsMap[tabType]!;
     final int rowCount = dataList.length;
-    final double screenWidth = MediaQuery.of(context).size.width;
-    final int columnCount = selectedColumns.values.where((v) => v).length;
+    final double screenWidth = MediaQuery
+        .of(context)
+        .size
+        .width;
+    final int columnCount = selectedColumns.values
+        .where((v) => v)
+        .length;
     final double totalWidth = columnCount * 100.0;
-    final double finalWidth = totalWidth < screenWidth ? screenWidth : totalWidth;
+    final double finalWidth =
+    totalWidth < screenWidth ? screenWidth : totalWidth;
     final double cellWidth = (tabType == "EPC") ? (finalWidth - 100.0) : 100.0;
-
 
     return Column(
       children: [
@@ -641,7 +714,7 @@ class _LoadingPageState extends State<LoadingPage>
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orangeAccent),
-                onPressed:() => selectionDialog(tabType),
+                onPressed: () => selectionDialog(tabType),
                 child: Text(
                     '表示項目選択', style: TextStyle(color: Colors.white)),
               ),
@@ -715,12 +788,10 @@ class _LoadingPageState extends State<LoadingPage>
                 width: 170,
                 height: 50,
                 child: ElevatedButton(
-                  //修正
-                  // onPressed: readRFIDStartStop,
-
-                  // _outerController.index が 0 のとき（タグページ）のみ有効化
-                  onPressed:
-                  (_outerController.index == 0) ? readRFIDStartStop : null,
+                  //ボタン有効化
+                  onPressed: readRFIDStartStop,
+                  //ボタンを無効化にする
+                  // (_outerController.index == 0) ? readRFIDStartStop : null,
                   style: ElevatedButton.styleFrom(
                     // disable 時は自動的にグレイアウトされます
                     backgroundColor:
@@ -738,11 +809,10 @@ class _LoadingPageState extends State<LoadingPage>
                   width: 60,
                   height: 40,
                   child: ElevatedButton(
-                    // onPressed: () async {
-
-                    //0があるときは保存ボタンはグレーになる。
-                    onPressed: (_outerController.index == 0)
-                        ? () async {
+                    onPressed: () async {
+                      // //0があるときは保存ボタンはグレーになる。
+                      // onPressed: (_outerController.index == 0)
+                      //     ? () async {
                       // いま開いている外側タブを判定
                       final prefix = _outerController.index == 0
                           ? "タグ情報"
@@ -750,34 +820,41 @@ class _LoadingPageState extends State<LoadingPage>
                           ? "QRコード情報"
                           : "バーコード情報";
 
-                      List<List<String>> csvData = [];
+                      // CSVデータを組み立て
+                      final csvData = DataListByTabType(_currentTab);
 
-                      if (isEPCTab) {
-                        csvData.add(["EPC"]);
-                        for (final item in epcList) {
-                          csvData.add([item["EPC"]?.toString() ?? ""]);
-                        }
-                      } else {
-                        csvData.add(["No", "EPC", "種別", "管理番号"]);
-
-                        for (final item in himodukeList) {
-                          csvData.add([
-                            item["No"]?.toString() ?? "",
-                            item["EPC"]?.toString() ?? "",
-                            item["種別"]?.toString() ?? "",
-                            item["管理番号"]?.toString() ?? "",
-                          ]);
-                        }
-                      }
-                      // ここで既存の関数を呼び出すだけ！
-                      await saveCsvWithPicker(context, csvData, prefix);
-                      // await saveCsvWithPicker(context, csvData, "LoadingDate");
-                    }
-                        : null,
+                      // 新しい CsvSaver を呼び出し
+                      await _csvSaver.save(context, csvData, prefix);
+                    },
                     style:
                     ElevatedButton.styleFrom(backgroundColor: Colors.white),
-                    child: Text('保存', style: TextStyle(color: Colors.blueAccent, fontSize: 12)),
-                  )),
+                    child: Text(
+                      '保存',
+                      style: TextStyle(color: Colors.blueAccent, fontSize: 12),
+
+                      //   if (isEpcTab) {
+                      //     csvData.add(["EPC"]);
+                      //     for (final item in epcList) {
+                      //       csvData.add([item["EPC"]?.toString() ?? ""]);
+                      //     }
+                      //   } else {
+                      //     csvData.add(["No", "EPC", "種別", "管理番号"]);
+                      //
+                      //     for (final item in himodukeList) {
+                      //       csvData.add([
+                      //         item["No"]?.toString() ?? "",
+                      //         item["EPC"]?.toString() ?? "",
+                      //         item["種別"]?.toString() ?? "",
+                      //         item["管理番号"]?.toString() ?? "",
+                      //       ]);
+                      //     }
+                      //   }
+                      //   // ここで既存の関数を呼び出すだけ！
+                      //   await saveCsvWithPicker(context, csvData, prefix);
+                      //   // await saveCsvWithPicker(context, csvData, "LoadingDate");
+                      // },
+                    ),
+                  ))
             ],
           ),
         ),
@@ -856,173 +933,174 @@ class _LoadingPageState extends State<LoadingPage>
   }
 
   // Build the nested inner tab structure
-    Widget _buildInnerTabs({required String bodyType}) {
-      // タブラベルは固定
-      final tabTypes = ["EPC", "Bit", "Himoduke"];
+  Widget _buildInnerTabs({required String bodyType}) {
+    // タブラベルは固定
+    final tabTypes = ["EPC", "Bit", "Himoduke"];
 
-      return Column(
-        children: [
-          // 内側タブバー
-          Material(
-            color: Colors.grey,
-            child: TabBar(
-              controller: _innerController,
-              isScrollable: true,
-              tabs: [
-                Tab(text: 'EPC'),
-                Tab(text: 'ビット割付'),
-                Tab(text: '紐付け'),
-              ],
-            ),
-          ),
-
-          // データ表示部（タグと同じデザイン）
-          Expanded(
-            child: TabBarView(
-              controller: _innerController,
-              children: tabTypes.map((tabType) {
-                // buildTabContent 内の
-                //   onPressed: (_outerController.index == 0) ? readRFIDStartStop : null
-                //   onPressed: (_outerController.index == 0) ? save… : null
-                // が働いて、QR／バーコードタブではボタンが無効になります。
-                return buildTabContent(tabType);
-              }).toList(),
-            ),
-          ),
-        ],
-      );
-    }
-
-    // コピー完了ダイアログ
-    void showCopyDialog() {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(
-              "確認",
-              textAlign: TextAlign.center, // タイトルを中央揃え
-              style: AppTheme.confirmDialogTheme.titleTextStyle,
-            ),
-            content: Padding(
-              padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-              child: Text(
-                "EPCをコピーしました。",
-                textAlign: TextAlign.center,
-                style: AppTheme.confirmDialogTheme.contentTextStyle,
-              ),
-            ),
-            actions: [
-              Align(
-                alignment: Alignment.center, // OKボタンを真ん中に配置
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    // 文字を白
-                    backgroundColor: AppTheme.confirmDialogButtonColor,
-                    // 背景色を青系
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                      side: BorderSide(
-                          color: AppTheme.confirmDialogBorderColor,
-                          width: 2), // 明るい枠線
-                    ),
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10), // 余白を適切に
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    "OK",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
+    return Column(
+      children: [
+        // 内側タブバー
+        Material(
+          color: Colors.grey,
+          child: TabBar(
+            controller: _innerController,
+            isScrollable: true,
+            tabs: [
+              Tab(text: 'EPC'),
+              Tab(text: 'ビット割付'),
+              Tab(text: '紐付け'),
             ],
-          );
-        },
-      );
-    }
+          ),
+        ),
 
-//保存処理機能
-    Future<void> saveCsvWithPicker(BuildContext context,
-        List<List<String>> csvData,
-        defaultFileName,) async {
-      final csvString = const ListToCsvConverter().convert(csvData);
-      final bytes = Uint8List.fromList(utf8.encode(csvString));
-      final now = DateTime.now();
-      final fn =
-          "${defaultFileName}_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv";
-
-      // 一時ディレクトリに保存
-      final dir = await getTemporaryDirectory();
-      final file = File("${dir.path}/$fn");
-      await file.writeAsBytes(bytes);
-
-      // ファイル保存ダイアログを表示
-      final params = SaveFileDialogParams(
-        sourceFilePath: file.path,
-        fileName: fn,
-      );
-
-      final savedPath = await FlutterFileDialog.saveFile(params: params);
-
-      if (savedPath != null) {
-        lodinginfoSaveDialog(); // ←ここで表示！
-      } else {
-        print("保存キャンセルまたは失敗");
-      }
-    }
-
-    void lodinginfoSaveDialog() {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(
-              "確認",
-              textAlign: TextAlign.center, // タイトルを中央揃え
-              style: AppTheme.confirmDialogTheme.titleTextStyle,
-            ),
-            content: Padding(
-              padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
-              child: Text(
-                "リストを保存しました。",
-                textAlign: TextAlign.center, // コンテンツを中央揃え
-                style: AppTheme.confirmDialogTheme.contentTextStyle,
-              ),
-            ),
-            actions: [
-              Align(
-                alignment: Alignment.center, // OKボタンを真ん中に配置
-                child: TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    // 文字を白
-                    backgroundColor: AppTheme.confirmDialogButtonColor,
-                    // 背景色を青系
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8), // 角を少し丸くする
-                      side: BorderSide(
-                          color: AppTheme.confirmDialogBorderColor,
-                          width: 2), // 明るい枠線
-                    ),
-                    padding: EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 10), // 余白を適切に
-                  ),
-                  onPressed: () {
-                    Navigator.pop(context); // ダイアログを閉じる
-                  },
-                  child: Text(
-                    "OK",
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    }
+        // データ表示部（タグと同じデザイン）
+        Expanded(
+          child: TabBarView(
+            controller: _innerController,
+            children: tabTypes.map((tabType) {
+              // buildTabContent 内の
+              //   onPressed: (_outerController.index == 0) ? readRFIDStartStop : null
+              //   onPressed: (_outerController.index == 0) ? save… : null
+              // が働いて、QR／バーコードタブではボタンが無効になります。
+              return buildTabContent(tabType);
+            }).toList(),
+          ),
+        ),
+      ],
+    );
   }
+
+  // コピー完了ダイアログ
+  void showCopyDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(
+            "確認",
+            textAlign: TextAlign.center, // タイトルを中央揃え
+            style: AppTheme.confirmDialogTheme.titleTextStyle,
+          ),
+          content: Padding(
+            padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+            child: Text(
+              "EPCをコピーしました。",
+              textAlign: TextAlign.center,
+              style: AppTheme.confirmDialogTheme.contentTextStyle,
+            ),
+          ),
+          actions: [
+            Align(
+              alignment: Alignment.center, // OKボタンを真ん中に配置
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  // 文字を白
+                  backgroundColor: AppTheme.confirmDialogButtonColor,
+                  // 背景色を青系
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+                    side: BorderSide(
+                        color: AppTheme.confirmDialogBorderColor,
+                        width: 2), // 明るい枠線
+                  ),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 10), // 余白を適切に
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: Text(
+                  "OK",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+//
+// //保存処理機能
+//     Future<void> saveCsvWithPicker(BuildContext context,
+//         List<List<String>> csvData,
+//         defaultFileName,) async {
+//       final csvString = const ListToCsvConverter().convert(csvData);
+//       final bytes = Uint8List.fromList(utf8.encode(csvString));
+//       final now = DateTime.now();
+//       final fn =
+//           "${defaultFileName}_${DateFormat('yyyyMMdd_HHmmss').format(now)}.csv";
+//
+//       // 一時ディレクトリに保存
+//       final dir = await getTemporaryDirectory();
+//       final file = File("${dir.path}/$fn");
+//       await file.writeAsBytes(bytes);
+//
+//       // ファイル保存ダイアログを表示
+//       final params = SaveFileDialogParams(
+//         sourceFilePath: file.path,
+//         fileName: fn,
+//       );
+//
+//       final savedPath = await FlutterFileDialog.saveFile(params: params);
+//
+//       if (savedPath != null) {
+//         lodinginfoSaveDialog(); // ←ここで表示！
+//       } else {
+//         print("保存キャンセルまたは失敗");
+//       }
+//     }
+
+  // void lodinginfoSaveDialog() {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) {
+  //       return AlertDialog(
+  //         title: Text(
+  //           "確認",
+  //           textAlign: TextAlign.center, // タイトルを中央揃え
+  //           style: AppTheme.confirmDialogTheme.titleTextStyle,
+  //         ),
+  //         content: Padding(
+  //           padding: const EdgeInsets.only(bottom: 10.0), // コンテンツとボタンの間に余白を追加
+  //           child: Text(
+  //             "リストを保存しました。",
+  //             textAlign: TextAlign.center, // コンテンツを中央揃え
+  //             style: AppTheme.confirmDialogTheme.contentTextStyle,
+  //           ),
+  //         ),
+  //         actions: [
+  //           Align(
+  //             alignment: Alignment.center, // OKボタンを真ん中に配置
+  //             child: TextButton(
+  //               style: TextButton.styleFrom(
+  //                 foregroundColor: Colors.white,
+  //                 // 文字を白
+  //                 backgroundColor: AppTheme.confirmDialogButtonColor,
+  //                 // 背景色を青系
+  //                 shape: RoundedRectangleBorder(
+  //                   borderRadius: BorderRadius.circular(8), // 角を少し丸くする
+  //                   side: BorderSide(
+  //                       color: AppTheme.confirmDialogBorderColor,
+  //                       width: 2), // 明るい枠線
+  //                 ),
+  //                 padding: EdgeInsets.symmetric(
+  //                     horizontal: 20, vertical: 10), // 余白を適切に
+  //               ),
+  //               onPressed: () {
+  //                 Navigator.pop(context); // ダイアログを閉じる
+  //               },
+  //               child: Text(
+  //                 "OK",
+  //                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+  //               ),
+  //             ),
+  //           ),
+  //         ],
+  //       );
+  //     },
+  //   );
+  // }
+

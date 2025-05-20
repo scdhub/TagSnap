@@ -17,7 +17,6 @@ class ListselectPage extends StatefulWidget {
 }
 
 class _ListselectPage extends State<ListselectPage> {
-
   /// タイプごとのファイルパスを管理
   final Map<String, String?> _filePaths = {
     'タグ': null,
@@ -34,12 +33,16 @@ class _ListselectPage extends State<ListselectPage> {
   //SharedPreferences から全タイプの設定をロード
   Future<void> _loadAllSavedFiles() async {
     final prefs = await SharedPreferences.getInstance();
+    final newPaths = <String, String?>{};
+    _filePaths.forEach((type, _) {
+      newPaths[type] = prefs.getString('managementCsvPath_$type');
+    });
+
     setState(() {
-      _filePaths.forEach((type, _) {
-        _filePaths[type] = prefs.getString('managementCsvPath_$type');
-      });
+      _filePaths.addAll(newPaths);
     });
   }
+
 
   //CSVファイルを選択して保存
   Future<void> _pickCsvFile(String type) async {
@@ -65,28 +68,29 @@ class _ListselectPage extends State<ListselectPage> {
 
   //セクションウィジェットの共通ビルド
   Widget _buildSection(String type) {
+    debugPrint('▶︎ $type: path = ${_filePaths[type]}');
     final fileName = _filePaths[type]?.split('/').last;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center, // 水平中央揃え
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
           '$type 読取り',
           style: TextStyle(
             fontSize: 18,
-            fontWeight: FontWeight.bold,
             color: Colors.white,
           ),
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 10),
-
-        // ファイル選択ボタンを中央
         ElevatedButton.icon(
           icon: Icon(Icons.insert_drive_file),
-          label: Text('CSVファイルを選択'),
+          label: Text(
+            'CSVファイルを選択',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blueAccent,
-            minimumSize: Size(200, 56),
+            minimumSize: Size(240, 65),
             padding: EdgeInsets.symmetric(horizontal: 24),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
@@ -94,25 +98,44 @@ class _ListselectPage extends State<ListselectPage> {
           ),
           onPressed: () => _pickCsvFile(type),
         ),
-        SizedBox(height: 8),
 
-        // クリアボタンも中央
-        TextButton(
-          onPressed: () => _clearCsvFile(type),
-          child: Text('クリア'),
-        ),
-        SizedBox(height: 8),
+        // 選択済みか未設定かで表示を切り替え
+        if (_filePaths[type] != null) ...[
+          SizedBox(height: 10),
+          Text(
+            fileName!,
+            style: TextStyle(fontSize: 14, color: Colors.white),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 8),
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Color(0xFF5FD970),
+              foregroundColor: Colors.white,
+              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              minimumSize: Size(0, 0),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            onPressed: () => _clearCsvFile(type),
+            child: Text('クリア'),
+          ),
+        ] else ...[
+          SizedBox(height: 10),
+          Text(
+            '未設定のためファイルを選択してください。',
+            style: TextStyle(fontSize: 14, color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+        ],
 
-        // ファイル名 or 未設定テキストを中央
-        Text(
-          fileName ?? '未設定のためファイルを選択してください。',
-          style: TextStyle(fontSize: 14, color: Colors.white),
-          textAlign: TextAlign.center,
-        ),
-        SizedBox(height: 24),
+        SizedBox(height: 40),
       ],
     );
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -131,28 +154,29 @@ class _ListselectPage extends State<ListselectPage> {
         elevation: 0,
         toolbarHeight: 80,
       ),
-      body: Center(
-          child: SingleChildScrollView(
-          child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 400), // 最大幅を指定（調整可能）
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ...['タグ', 'QRコード', 'バーコード']
-                .map((type) => _buildSection(type))
-                .toList(),
-          ],
+      body: SingleChildScrollView(
+    child: Center( // ← これを追加
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), // ← 上だけ4に変更
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ...['タグ', 'QRコード', 'バーコード']
+                    .map((type) => _buildSection(type))
+                    .toList(),
+              ],
+            ),
+          ),
         ),
       ),
-    ),
-    ),
       ),
     );
   }
 
-  void fileSettingOkDialog() {
+
+        void fileSettingOkDialog() {
     showDialog(
       context: context,
       builder: (context) {
@@ -197,4 +221,4 @@ class _ListselectPage extends State<ListselectPage> {
       },
     );
   }
-}
+  }
