@@ -14,8 +14,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPage extends State<LoginPage> {
-  final TextEditingController _accountController = TextEditingController(text: 'r-oshima@newland.co.jp');
-  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _accountController = TextEditingController(text: 'test@scd.jp');
+  final TextEditingController _passwordController = TextEditingController(text: '12345678');
 
   Future<Map<String, dynamic>?> startLogin() async {
     // ログイン処理実行

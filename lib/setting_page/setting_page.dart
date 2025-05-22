@@ -193,7 +193,7 @@ class _SettingPageState extends State<SettingPage> {
               destination = SavePage();
               break;
             case '紐付け・在庫リスト選択':
-              destination = ListselectPage();
+              destination = ListselectPage(bodyType: '',);
               break;
             case 'アクティベーション':
               destination = ActivationPage();

@@ -191,7 +191,8 @@ class _SearchPageState extends State<SearchPage>
   // 管理用 CSV 読み込み
   Future<void> _loadCsvMapping() async {
     final prefs = await SharedPreferences.getInstance();
-    final csvPath = prefs.getString('managementCsvPath');
+    final csvPath = prefs.getString('managementCsvPath_タグ');
+    // final csvPath = prefs.getString('managementCsvPath');
     if (csvPath == null) return;
     final file = File(csvPath);
     if (!await file.exists()) return;

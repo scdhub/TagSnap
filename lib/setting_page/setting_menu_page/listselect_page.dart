@@ -17,7 +17,25 @@ class ListselectPage extends StatefulWidget {
 }
 
 class _ListselectPage extends State<ListselectPage> {
-  /// タイプごとのファイルパスを管理
+
+  // すべてクリア
+  Future<void> _clearAllCsvFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final type in _filePaths.keys) {
+      await prefs.remove('managementCsvPath_$type');
+    }
+    setState(() {
+      for (final type in _filePaths.keys) {
+        _filePaths[type] = null;
+      }
+    });
+  }
+
+  // すべてクリアボタンはファイルがすべて読み込まれている時に出現
+  bool get _allFilesSelected =>
+      _filePaths.values.every((path) => path != null);
+
+  // タイプごとのファイルパスを管理
   final Map<String, String?> _filePaths = {
     'タグ': null,
     'QRコード': null,
@@ -42,7 +60,6 @@ class _ListselectPage extends State<ListselectPage> {
       _filePaths.addAll(newPaths);
     });
   }
-
 
   //CSVファイルを選択して保存
   Future<void> _pickCsvFile(String type) async {
@@ -136,7 +153,6 @@ class _ListselectPage extends State<ListselectPage> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -155,28 +171,60 @@ class _ListselectPage extends State<ListselectPage> {
         toolbarHeight: 80,
       ),
       body: SingleChildScrollView(
-    child: Center( // ← これを追加
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), // ← 上だけ4に変更
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ...['タグ', 'QRコード', 'バーコード']
-                    .map((type) => _buildSection(type))
-                    .toList(),
+        child: Center(
+          // ← これを追加
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: 400),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16), // 上だけ4
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ...['タグ', 'QRコード', 'バーコード']
+                      .map((type) => _buildSection(type))
+                      .toList(),
+
+            // 全ファイル設定済みなら「すべてクリア」ボタンを表示
+            if (_allFilesSelected) ...[
+          SizedBox(height: 20),
+      ElevatedButton.icon(
+        icon: Icon(Icons.delete_sweep),
+        label: Text('すべてクリア', style: TextStyle(fontWeight: FontWeight.bold)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.redAccent,
+          minimumSize: Size(240, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        onPressed: () async {
+          final confirm = await showDialog<bool>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text('確認'),
+              content: Text('本当にすべての設定をクリアしますか？'),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('キャンセル')),
+                TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('クリア', style: TextStyle(color: Colors.red))),
               ],
+            ),
+          );
+          if (confirm == true) {
+            await _clearAllCsvFiles();
+                      }
+                    },
+                  ),
+                ],
+              ]
+              ),
             ),
           ),
         ),
       ),
-      ),
     );
   }
 
-
-        void fileSettingOkDialog() {
+  void fileSettingOkDialog() {
     showDialog(
       context: context,
       builder: (context) {
@@ -221,4 +269,4 @@ class _ListselectPage extends State<ListselectPage> {
       },
     );
   }
-  }
+}

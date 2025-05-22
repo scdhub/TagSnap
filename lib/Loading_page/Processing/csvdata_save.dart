@@ -1,5 +1,5 @@
-/// utils/csv_saver.dart
-/// CSV保存処理を切り出したユーティリティクラス
+
+//CSV保存処理を切り出したユーティリティクラス
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -74,8 +74,8 @@ class CsvSaver {
   CsvSaver({DialogService? dialogService})
       : dialogService = dialogService ?? DefaultDialogService();
 
-  /// CSVデータを一時ディレクトリに書き込み、
-  /// ファイルダイアログで保存を促し、結果に応じてダイアログ表示
+  //CSVデータを一時ディレクトリに書き込み、
+  //ファイルダイアログで保存を促し、結果に応じてダイアログ表示
   Future<void> save(
       BuildContext context,
       List<List<String>> csvData,
