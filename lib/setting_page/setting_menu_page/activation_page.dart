@@ -117,11 +117,10 @@ class _ActivationPageState extends State<ActivationPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        automaticallyImplyLeading: isActivated,//アクティブ中のみ戻るボタンを自動で表示
+        automaticallyImplyLeading: isActivated, //アクティブ中のみ戻るボタンを自動で表示
         title: const Text(
           'アクティベーション',
           style: TextStyle(
@@ -150,11 +149,13 @@ class _ActivationPageState extends State<ActivationPage> {
             _buildInfoRow('Device.Model:', deviceModel),
             const Spacer(),
             Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
                 isActivated
-                ? _buildActionButton('解除', Color(0xFFFF3C3C), _deactivateDialog)
-              : _buildActionButton('アクティベーション', Colors.blueAccent, _showMockSubmit),
+                    ? _buildActionButton(
+                        '解除', Color(0xFFFF3C3C), _deactivateDialog)
+                    : _buildActionButton(
+                        'アクティベーション', Colors.blueAccent, _showMockSubmit),
               ],
             ),
           ],
@@ -180,16 +181,23 @@ class _ActivationPageState extends State<ActivationPage> {
         TextField(
           cursorColor: Colors.white, //カーソルみたいなマークを表示
           controller: controller,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(
+          // アクティベーション済のときは編集不可
+          enabled: !isActivated,
+          decoration: InputDecoration(
+            border: const OutlineInputBorder(
               borderSide: BorderSide(color: Colors.grey),
             ),
             enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(
+                color: isActivated ? Colors.grey.shade600 : Colors.grey,
+              ),
+            ),
+            focusedBorder: const OutlineInputBorder(
               borderSide: BorderSide(color: Colors.grey),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderSide: BorderSide(color: Colors.grey),
-            ),
+            //　アクティブ済みで、編集不可時は背景を薄くする
+            fillColor: isActivated ? Colors.grey.shade100 : null,
+            filled: isActivated,
           ),
         ),
       ],
@@ -290,7 +298,7 @@ class _ActivationPageState extends State<ActivationPage> {
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               ),
               onPressed: () => Navigator.pop(context),
-              child: const Text("CANCEL"),
+              child: const Text("いいえ"),
             ),
             const SizedBox(
               width: 10,
@@ -322,7 +330,7 @@ class _ActivationPageState extends State<ActivationPage> {
                 Navigator.pop(context);
                 showResultDialog(context, result);
               },
-              child: const Text("OK"),
+              child: const Text("はい"),
             ),
           ],
         );
