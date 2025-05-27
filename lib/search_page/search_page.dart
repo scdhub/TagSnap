@@ -42,7 +42,7 @@ class _SearchPageState extends State<SearchPage>
   int reDrawSignalVal = 0; // ゲージ描画/再描画時に参照する値（超速で値更新される時には間引いた値が入る）
   String copiedEPC = ""; // コピーしたEPCを保持
   int signalStrength = 50; // 仮の初期値（0〜100の範囲で適宜変更）
-  StreamSubscription<tagInfoData>? subscription;
+  StreamSubscription<EventDataInfo>? subscription;
   int get filledBars => (reDrawSignalVal ~/ 10).clamp(0, 10);
 
   List<String> tagList = [];
@@ -217,47 +217,53 @@ class _SearchPageState extends State<SearchPage>
   }
 
   Future<void> initializeRFID() async {
-    var isInitRFID = await WrapperDeviceLib.initRFID();
+    var isInit = await WrapperDeviceLib.initRFID();
+    // QR呼び出し用の初期化(こちらは特に結果を待たない)
+    await WrapperDeviceLib.initQR();
 
-    if (isInitRFID) {
-      subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
-        final info = managementMap[getTagInfo.epc]; // 管理CSVのデータから情報を取得
+    if (isInit) {
+      subscription = WrapperDeviceLib.receiveData().listen((event) {
+        // RFID時
+        if (event is TagInfoDataEvent) {
+          var getTagInfo = event.data;
+          final info = managementMap[getTagInfo.epc]; // 管理CSVのデータから情報を取得
 
-        // 重複していない時はリスト情報更新
-        if (!tagList.contains(getTagInfo.epc)) {
-          tagList.add(getTagInfo.epc);
-          epcList.add({
-            "No": (epcList.length + 1).toString(),
-            "EPC": getTagInfo.epc,
-            "種別": info?["種別"] ?? "",
-            "管理番号": info?["管理番号"] ?? "",
-            // 電波強度としてUI表示する用に値を変換
-            "電波強度": ConvertRssiToPercent(getTagInfo.rssi),
-            // "回数": "1",
-          });
-          himodukeList.add({
-            "No": (epcList.length).toString(),
-            "EPC": getTagInfo.epc,
-            "種別": info?["種別"] ?? "",
-            "管理番号": info?["管理番号"] ?? "",
-            // "回数": "1",
-          });
-          updateData(epcList, "EPC");
-          updateData(himodukeList, "Himoduke");
-        } // 重複時
-        else {
-          if (selectedIndex != null) {
-            // 選択中EPC情報と合致するデータか
-            if (getTagInfo.epc == epcList[selectedIndex!]["EPC"]) {
-              print('取得してきたRSSI値：${getTagInfo.rssi}');
-              var convPrm = ConvertRssiToPercent(getTagInfo.rssi);
-              // ゲージ描画用の値を更新
-              setState(() {
-                reDrawSignalVal = convPrm;
-              });
+          // 重複していない時はリスト情報更新
+          if (!tagList.contains(getTagInfo.epc)) {
+            tagList.add(getTagInfo.epc);
+            epcList.add({
+              "No": (epcList.length + 1).toString(),
+              "EPC": getTagInfo.epc,
+              "種別": info?["種別"] ?? "",
+              "管理番号": info?["管理番号"] ?? "",
+              // 電波強度としてUI表示する用に値を変換
+              "電波強度": ConvertRssiToPercent(getTagInfo.rssi),
+              // "回数": "1",
+            });
+            himodukeList.add({
+              "No": (epcList.length).toString(),
+              "EPC": getTagInfo.epc,
+              "種別": info?["種別"] ?? "",
+              "管理番号": info?["管理番号"] ?? "",
+              // "回数": "1",
+            });
+            updateData(epcList, "EPC");
+            updateData(himodukeList, "Himoduke");
+          } // 重複時
+          else {
+            if (selectedIndex != null) {
+              // 選択中EPC情報と合致するデータか
+              if (getTagInfo.epc == epcList[selectedIndex!]["EPC"]) {
+                print('取得してきたRSSI値：${getTagInfo.rssi}');
+                var convPrm = ConvertRssiToPercent(getTagInfo.rssi);
+                // ゲージ描画用の値を更新
+                setState(() {
+                  reDrawSignalVal = convPrm;
+                });
+              }
             }
           }
-        }
+        }// QR時
       });
     }
   }

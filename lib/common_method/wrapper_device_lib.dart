@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:tagsnap/common_method/taginfo_data.dart';
+import 'package:tagsnap/common_method/qrinfo_data.dart';
 
 
 // デバイス通信を行うための処理を隠ぺいするためのクラス
@@ -20,17 +21,6 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('startRFIDScan') ?? false;
   }
 
-  // 読み取った情報の戻り値取得
-  static Stream<tagInfoData> get tagInfoStream {
-    return _devStream.receiveBroadcastStream().map((result) {
-      if (result is Map) {
-        return tagInfoData.fromMap(Map<String, dynamic>.from(result));
-      } else {
-        throw Exception("Get Error : tagInfoStream");
-      }
-    });
-  }
-
   // 読み取り停止
   static Future<bool> stopRFIDScan() async {
     return await _devChannel.invokeMethod<bool>('stopRFIDScan') ?? false;
@@ -46,12 +36,59 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('TermRFID') ?? false;
   }
 
-
-  // QRコード読み取り用（未）
-  bool callDevice2DLib(int setNum){
-    bool ret = true;
-
-    return ret;
+  // QRコード初期化
+  static Future<bool> initQR() async {
+    return await _devChannel.invokeMethod<bool>('initQR') ?? false;
   }
 
+  // QRコード読み取り
+  static Future<bool> startQRScan() async {
+    return await _devChannel.invokeMethod<bool>('startQRScan') ?? false;
+  }
+
+  // QRコード終了
+  static Future<bool> termQR() async {
+    return await _devChannel.invokeMethod<bool>('TermQR') ?? false;
+  }
+
+// // 読み取った情報の戻り値取得
+// static Stream<tagInfoData> get tagInfoStream {
+//   return _devStream.receiveBroadcastStream().map((result) {
+//     if (result is Map) {
+//       return tagInfoData.fromMap(Map<String, dynamic>.from(result));
+//     } else {
+//       throw Exception("Get Error : tagInfoStream");
+//     }
+//   });
+// }
+
+  // 受信情報をMapの種別ごとに分ける
+  static Stream<EventDataInfo> receiveData() async* {
+    await for (final result in _devStream.receiveBroadcastStream()) {
+      if (result is Map && result.containsKey('type')) {
+        switch (result['type']) {
+          case 'rfid':
+            yield TagInfoDataEvent(tagInfoData.fromMap(Map<String, dynamic>.from(result)));
+            break;
+          case 'QR':
+            yield QRInfoDataEvent(qrInfoData.fromMap(Map<String, dynamic>.from(result)));
+            break;
+          default:
+            break;
+        }
+      }
+    }
+  }
+}
+
+// ストリーム受信時の結果情報切り替え用
+sealed class EventDataInfo {}
+
+class TagInfoDataEvent extends EventDataInfo {
+  final tagInfoData data;
+  TagInfoDataEvent(this.data);
+}
+class QRInfoDataEvent extends EventDataInfo {
+  final qrInfoData data;
+  QRInfoDataEvent(this.data);
 }

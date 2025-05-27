@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 class tagInfoData {
+  final String type;
   final String epc;
   final String ant;
   final int count;
@@ -19,6 +20,7 @@ class tagInfoData {
   final Uint8List userBytes;
 
   tagInfoData({
+    required this.type,
     required this.epc,
     required this.ant,
     required this.count,
@@ -41,6 +43,7 @@ class tagInfoData {
     // null値が入っていた場合は代替値を入れる
     // Listがnull時はKotlin側で考慮し何も値が入っていないListになっている
     return tagInfoData(
+      type: map['type'] as String? ?? '',
       epc: map['epc'] as String? ?? '',
       ant: map['ant'] as String? ?? '',
       count: map['count'] as int? ?? 0,

@@ -1,5 +1,16 @@
 package com.example.tagsnap
 
+// デバッグ用log出力
+import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import com.rscja.barcode.BarcodeDecoder
+import com.rscja.barcode.BarcodeFactory
+import com.rscja.deviceapi.entity.BarcodeEntity
 import com.rscja.deviceapi.RFIDWithUHFUART
 import com.rscja.deviceapi.entity.InventoryParameter
 import com.rscja.deviceapi.entity.UHFTAGInfo
@@ -9,15 +20,6 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
-import android.os.Handler
-import android.os.Looper
-import android.content.Context
-import android.media.AudioManager
-import android.media.ToneGenerator
-import android.os.Bundle
-
-// デバッグ用log出力
-import android.util.Log
 
 class MainActivity : FlutterActivity() {
 
@@ -26,12 +28,17 @@ class MainActivity : FlutterActivity() {
     private var isInit = false
     private var isReading = false
     private var rfid: RFIDWithUHFUART? = null
+    private var isInitQR = false
+    private var barcodeDecoder: BarcodeDecoder? = null
 
     // 連続送信時のディレイ処理用
     private var isSending = false
     private var delaySendRFIFInfoTime = 1L
     private var latestTag: String? = null
     private var latestTagInfo: Map<String, Any> = emptyMap()
+
+    // QR用
+    private var latestQRInfo: Map<String, Any> = emptyMap()
 
     // Dartファイル側との通信を行うための共通文言
     private val channel = "com.example.tagsnap/DevChannel"
@@ -41,6 +48,9 @@ class MainActivity : FlutterActivity() {
     private lateinit var toneGenerator: ToneGenerator
     private lateinit var audioManager: AudioManager
 
+    // 作業メモ
+    // 機能ごとにファイルを分けたい
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -48,30 +58,41 @@ class MainActivity : FlutterActivity() {
         methodChannel.setMethodCallHandler { call, result ->
             when (call.method) {
 
-                // 初期化処理
+                // RFID系
+                // RFID初期化処理
                 "initRFID" -> {
                     result.success(initRFID())
                 }
-
-                // 読み取り開始（連続読み取り）
+                // RFID読み取り開始（連続読み取り）
                 "startRFIDScan" -> {
                     result.success(startRFIDScan())
                 }
-
-                // 読み取り停止
+                // RFID読み取り停止
                 "stopRFIDScan" -> {
                     stopRFIDScanInternal()
                     result.success(true)
                 }
-
-                // 読み取り開始（単一読み取り）
+                // RFID読み取り開始（単一読み取り）
                 "startRFIDScanOnce" -> {
                     result.success(startRFIDScanOnce())
                 }
-
-                // 終了処理
+                // RFID終了処理
                 "TermRFID" -> {
                     termRFID()
+                    result.success(true)
+                }
+
+                // QR系
+                // QR初期化処理
+                "initQR" -> {
+                    result.success(initQR())
+                }
+                "startQRScan" -> {
+                    result.success(startScanQRCode())
+                }
+                // QR終了処理
+                "TermQR" -> {
+                    termQR()
                     result.success(true)
                 }
 
@@ -179,6 +200,7 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    // RFID結果情報を格納用MAPに変換
     private fun convertReceiveTagInfo(rcvTagInfo: UHFTAGInfo) {
 
         latestTag = rcvTagInfo.getEPC()
@@ -195,6 +217,7 @@ class MainActivity : FlutterActivity() {
 
         // 格納情報をmapに入れる
         latestTagInfo = mapOf(
+            "type" to "rfid",
             "epc" to rcvTagInfo.getEPC(),
             "ant" to rcvTagInfo.getAnt(),
             "count" to rcvTagInfo.getCount(),
@@ -242,6 +265,96 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+
+    // QRの初期化処理
+    private fun initQR(): Boolean {
+        // 初期化処理通過済みで未closeだったら行わない
+        if(!isInitQR) {
+            barcodeDecoder = BarcodeFactory.getInstance().getBarcodeDecoder()
+            barcodeDecoder?.open(this)
+
+            // 結果情報受信時はここでflutter側への応答を返す
+            barcodeDecoder?.setDecodeCallback(object : BarcodeDecoder.DecodeCallback {
+                override fun onDecodeComplete(barcodeEntity: BarcodeEntity){
+                    // 成功時
+                    if (barcodeEntity.getResultCode() === BarcodeDecoder.DECODE_SUCCESS) {
+                        // 結果情報を格納
+                        convertReceiveQR(barcodeEntity)
+                        // flutterの制約によりメインスレッドで必ず返さないといけない
+                        runOnUiThread {
+                            // flutterへの情報送信
+                            eventSink?.success(latestQRInfo)
+                            // デバッグ用ログ
+                            Log.d("Kotlin:MainActivity", "QR情報送信")
+
+                        }
+                        // 結果情報格納の初期化
+                        latestQRInfo = emptyMap()
+                    } else {
+                        Log.d("Kotlin:MainActivity", "QR情報受信失敗")
+                    }
+                }
+            })
+        }
+        return true
+    }
+
+    // QRの読み取り開始
+    private fun startScanQRCode(): Boolean {
+        barcodeDecoder?.startScan()
+
+        return true
+    }
+
+    // QR結果情報を格納用MAPに変換
+    private fun convertReceiveQR(barcodeEntity: BarcodeEntity) {
+
+        // 情報として得られるものが不明確なため保留
+        // uhfTagInfo.getExtraData(String) // 引数がkey情報
+        // 戻り値がAPI内のクラスになるため無視
+        // uhfTagInfo.getChipInfo() // 戻り値はUHFTAGInfo.ChipInfo
+
+        // 格納前に成形が必要な情報を受ける(nullだったら空の配列にする)
+        val BarcodeDataBytes: ByteArray = barcodeEntity.getBarcodeBytesData() ?: ByteArray(0)
+        val PrefixBytes: ByteArray = barcodeEntity.getPrefix() ?: ByteArray(0)
+
+        // 格納情報をmapに入れる
+        latestQRInfo = mapOf(
+            "type" to "QR",
+            "aimID" to barcodeEntity.getAimId(),
+            "barcodeBytes" to BarcodeDataBytes.toList(),
+            "barcodeData" to barcodeEntity.getBarcodeData(),
+            "barcodeName" to barcodeEntity.getBarcodeName(),
+            "barcodeSymbology" to barcodeEntity.getBarcodeSymbology(),
+            "decodeTime" to barcodeEntity.getDecodeTime(),
+            "errCode" to barcodeEntity.getErrCode(),
+            "prefix" to PrefixBytes.toList()
+        )
+    }
+
+
+    // QRの読み取り終了
+    private fun stopScanQRCode(): Boolean {
+        barcodeDecoder = BarcodeFactory.getInstance().getBarcodeDecoder()
+        barcodeDecoder?.open(this)
+        isInitQR = true
+
+        return true
+    }
+
+
+    // QRの終了処理
+    private fun termQR(): Boolean {
+        if(isInitQR) {
+            barcodeDecoder?.close()
+            isInitQR = false
+        }
+
+        return true
+    }
+
+
+
     // 初期化
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -255,6 +368,7 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         stopRFIDScanInternal()
         termRFID()
+        termQR()
         toneGenerator.release()
         super.onDestroy()
     }

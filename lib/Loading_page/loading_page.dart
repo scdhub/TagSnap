@@ -70,7 +70,7 @@ class _LoadingPageState extends State<LoadingPage>
 
   // RFIDの重複していないタグ情報を格納するためのリストとStreamからの受信用変数
   final Set<String> tagList = {};
-  late StreamSubscription<tagInfoData>? subscription;
+  late StreamSubscription<EventDataInfo>? subscription;
 
   // 設定画面で選んだ CSV ファイルのパスから読み込むマップ
   Map<String, Map<String, String>> managementMap = {};
@@ -149,7 +149,7 @@ class _LoadingPageState extends State<LoadingPage>
       updateData(himodukeList, "Himoduke");
       setState(() {});
     });
-    initializeRFID();
+    initializeDevice();
   }
 
   // CSV マッピング読み込みを全タブ共通で no-arg に変更
@@ -200,6 +200,7 @@ class _LoadingPageState extends State<LoadingPage>
     _listScrollController.dispose();
 
     WrapperDeviceLib.termRFID();
+    WrapperDeviceLib.termQR();
     subscription?.cancel();
 
     super.dispose();
@@ -228,48 +229,58 @@ class _LoadingPageState extends State<LoadingPage>
     }
   }
 
-  // RFID周りの初期化
-  Future<void> initializeRFID() async {
+  // 受信周りの初期化
+  Future<void> initializeDevice() async {
     // RFID呼び出し用の初期化
-    var isInitRFID = await WrapperDeviceLib.initRFID();
-    if (isInitRFID) {
-      subscription = WrapperDeviceLib.tagInfoStream.listen((getTagInfo) {
-        if (!tagList.contains(getTagInfo.epc)) {
-          tagList.add(getTagInfo.epc);
-          epcList.add({
-            "No": (epcList.length + 1).toString(),
-            "EPC": getTagInfo.epc,
-            "種別": managementMap[getTagInfo.epc]?["種別"] ?? "",
-            "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
-            "回数": "1",
-          });
-          himodukeList.add({
-            "No": (himodukeList.length + 1).toString(),
-            "EPC": getTagInfo.epc,
-            "種別": managementMap[getTagInfo.epc]?["種別"] ?? "",
-            "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
-            "回数": "1",
-          });
-        } else {
-          // ─────────────────────────────
-          // 重複タグを検出 → チェックOFF時のみ回数をインクリメント
-          // ─────────────────────────────
-          if (!isNoDoubleRead) {
-            for (var item in epcList) {
-              if (item["EPC"] == getTagInfo.epc) {
-                int cnt = int.tryParse(item["回数"]) ?? 1;
-                item["回数"] = (cnt + 1).toString();
-                break;
-              }
-            }
-            // 紐付けタブにも反映
-            refreshHimoduke();
-          }
-        }
+    var isInit = await WrapperDeviceLib.initRFID();
+    // QR呼び出し用の初期化(こちらは特に結果を待たない)
+    await WrapperDeviceLib.initQR();
 
-        // 最後にUI更新
-        updateData(epcList, "EPC");
-        updateData(himodukeList, "Himoduke");
+    if (isInit) {
+      subscription = WrapperDeviceLib.receiveData().listen((event) {
+        if (event is TagInfoDataEvent) {
+          var getTagInfo = event.data;
+          if (!tagList.contains(getTagInfo.epc)) {
+            tagList.add(getTagInfo.epc);
+            epcList.add({
+              "No": (epcList.length + 1).toString(),
+              "EPC": getTagInfo.epc,
+              "種別": managementMap[getTagInfo.epc]?["種別"] ?? "",
+              "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
+              "回数": "1",
+            });
+            himodukeList.add({
+              "No": (himodukeList.length + 1).toString(),
+              "EPC": getTagInfo.epc,
+              "種別": managementMap[getTagInfo.epc]?["種別"] ?? "",
+              "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
+              "回数": "1",
+            });
+          } else {
+            // ─────────────────────────────
+            // 重複タグを検出 → チェックOFF時のみ回数をインクリメント
+            // ─────────────────────────────
+            if (!isNoDoubleRead) {
+              for (var item in epcList) {
+                if (item["EPC"] == getTagInfo.epc) {
+                  int cnt = int.tryParse(item["回数"]) ?? 1;
+                  item["回数"] = (cnt + 1).toString();
+                  break;
+                }
+              }
+              // 紐付けタブにも反映
+              refreshHimoduke();
+            }
+          }
+          // 最後にUI更新
+          updateData(epcList, "EPC");
+          updateData(himodukeList, "Himoduke");
+
+        } else if (event is QRInfoDataEvent) {
+          // QRに関する情報の取得(仮)
+         var getQRInfo = event.data;
+         var getData = getQRInfo.barcodeData;
+        }
       }, onError: (error) {
         print("epcStreamエラー: $error");
       });
@@ -277,17 +288,27 @@ class _LoadingPageState extends State<LoadingPage>
   }
 
   // 読み取り開始/停止処理
-  Future<void> readRFIDStartStop() async {
-    bool ret;
-    if (!isReading) {
-      // 常に連続スキャンを開始（Once は使わない）
-      ret = await WrapperDeviceLib.startRFIDScan();
-    } else {
-      ret = await WrapperDeviceLib.stopRFIDScan();
+  Future<void> readDeviceScanStartStop() async {
+    bool ret = false;
+    // タグ読み込み
+    if(0 == _outerController.index) {
+      if (!isReading) {
+        // 常に連続スキャンを開始（Once は使わない）
+        ret = await WrapperDeviceLib.startRFIDScan();
+      } else {
+        ret = await WrapperDeviceLib.stopRFIDScan();
+      }
     }
-    if (ret) {
-      toggleReading();
-      setState(() {});
+    // QRコード
+    else if(1 == _outerController.index){
+      ret = await WrapperDeviceLib.startQRScan();
+    }
+    // 現状QRは連続読み込みがないためボタンはトグルにしない
+    if(0 == _outerController.index) {
+      if (ret) {
+        toggleReading();
+        setState(() {});
+      }
     }
   }
 
@@ -379,9 +400,9 @@ class _LoadingPageState extends State<LoadingPage>
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<StreamSubscription<tagInfoData>>(
+    properties.add(DiagnosticsProperty<StreamSubscription<EventDataInfo>>(
         'subscription', subscription));
-    properties.add(DiagnosticsProperty<StreamSubscription<tagInfoData>>(
+    properties.add(DiagnosticsProperty<StreamSubscription<EventDataInfo>>(
         'subscription', subscription));
   }
 
@@ -838,7 +859,7 @@ class _LoadingPageState extends State<LoadingPage>
                 height: 50,
                 child: ElevatedButton(
                   //ボタン有効化
-                  onPressed: readRFIDStartStop,
+                  onPressed: readDeviceScanStartStop,
                   //ボタンを無効化にする
                   // (_outerController.index == 0) ? readRFIDStartStop : null,
                   style: ElevatedButton.styleFrom(
