@@ -44,6 +44,7 @@ dependencies:
   shared_preferences: ^2.0.15
   floating_bubbles: ^2.6.2
   http: ^1.3.0
+  nfc_manager: ^3.0.1
 #  uuid:^4.5.1
 #  url_launcher: ^..5
 
@@ -117,16 +118,7 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
-#下記のflutter_native_splashを修正したら下記を実行
-#flutter pub get
-#flutter pub run flutter_launcher_icons:main
-#flutter_native_splash:
-#  color: "#FFFFFF"  # 背景色 (ユーザーの好みに合わせて)
-#  android_12:
-#    image: assets/assets_icon_image/TagSnap_02.png  # Android 12 以降で使用する画像
-#    icon_background_color: "#FFFFFF"  # 背景色
-#  android: true
-#  ios: true
+
 
 
 

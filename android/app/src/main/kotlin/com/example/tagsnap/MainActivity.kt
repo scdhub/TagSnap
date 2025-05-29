@@ -21,6 +21,13 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import java.util.*
 
+//NFC対応
+import android.content.Intent
+import android.provider.Settings
+import io.flutter.plugin.common.MethodCall
+
+
+
 class MainActivity : FlutterActivity() {
 
     // 通信用の変数
@@ -47,6 +54,10 @@ class MainActivity : FlutterActivity() {
     // ビープ音用変数
     private lateinit var toneGenerator: ToneGenerator
     private lateinit var audioManager: AudioManager
+
+    //NFC判定（光嶋追加）
+    private val CHANNEL = "com.example.nfc/settings"
+
 
     // 作業メモ
     // 機能ごとにファイルを分けたい
@@ -102,6 +113,18 @@ class MainActivity : FlutterActivity() {
                 }
 
                 else -> result.notImplemented()
+            }
+        }
+
+        // NFC設定画面を開くチャンネルの追加
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler{call: MethodCall, result: MethodChannel.Result ->
+            if (call.method == "openNfcSettings") {
+                val intent = Intent(Settings.ACTION_NFC_SETTINGS)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                result.success(null)
+            } else {
+                result.notImplemented()
             }
         }
 
@@ -204,6 +227,8 @@ class MainActivity : FlutterActivity() {
             sendToFlutter()
         }
     }
+
+
 
     // RFID結果情報を格納用MAPに変換
     private fun convertReceiveTagInfo(rcvTagInfo: UHFTAGInfo) {
@@ -386,3 +411,4 @@ class MainActivity : FlutterActivity() {
         super.onDestroy()
     }
 }
+

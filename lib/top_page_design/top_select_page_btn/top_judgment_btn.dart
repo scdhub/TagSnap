@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../judgment_page/judgment_page.dart';
 
 class TopJudgmentBtn extends StatefulWidget {
   const TopJudgmentBtn({super.key});
@@ -17,7 +18,13 @@ class _TopJudgmentButton extends State<TopJudgmentBtn> {
         .size
         .width; //端末の幅に合わせる
 
-    return GestureDetector(
+    return InkWell(
+        onTap: () {
+          Navigator.push(context,MaterialPageRoute(builder: (context)
+          => JudgmentPage()),  // 遷移先のページ
+          );
+        },
+
       onTapDown: (_) => setState(() => isPressed = true),  // 押した時
       onTapUp: (_) => setState(() => isPressed = false),   // 離した時
       onTapCancel: () => setState(() => isPressed = false), // キャンセル時

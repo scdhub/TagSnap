@@ -120,17 +120,10 @@ class _TopPageState extends State<TopPage> {
                   ),
                   // TopQrBtn(),
 
-                  //押下できない
-                  IgnorePointer(
-                    ignoring: true,
-                    child: Opacity(
-                      opacity: 0.5,
-                      child: TopJudgmentBtn(),
-                    ),
-                  ),
-                  // TopJudgmentBtn(),
+                  // 真贋判定
+                  TopJudgmentBtn(),
 
-                  //押下できる
+                  // 押下できる
                   TopTagnavBt(),
                 ],
               ),
