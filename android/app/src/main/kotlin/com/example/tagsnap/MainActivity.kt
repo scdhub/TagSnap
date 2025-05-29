@@ -87,8 +87,13 @@ class MainActivity : FlutterActivity() {
                 "initQR" -> {
                     result.success(initQR())
                 }
+                // QR読み取り開始
                 "startQRScan" -> {
                     result.success(startScanQRCode())
+                }
+                // QR読み取り停止
+                "stopQRScan" -> {
+                    result.success(stopScanQRCode())
                 }
                 // QR終了処理
                 "TermQR" -> {
@@ -282,6 +287,11 @@ class MainActivity : FlutterActivity() {
                         convertReceiveQR(barcodeEntity)
                         // flutterの制約によりメインスレッドで必ず返さないといけない
                         runOnUiThread {
+                            // デバッグ用
+                            // 情報の取得
+                            var tmpinfo = barcodeDecoder?.getDecoderSVersionInfo()
+                            Log.d("Kotlin:MainActivity", "取得情報：$tmpinfo")
+
                             // flutterへの情報送信
                             eventSink?.success(latestQRInfo)
                             // デバッグ用ログ
@@ -291,7 +301,9 @@ class MainActivity : FlutterActivity() {
                         // 結果情報格納の初期化
                         latestQRInfo = emptyMap()
                     } else {
-                        Log.d("Kotlin:MainActivity", "QR情報受信失敗")
+                        var result = barcodeEntity.getResultCode()
+                        var BarcodeName = barcodeEntity.getBarcodeName()
+                        Log.d("Kotlin:MainActivity", "QR情報受信失敗 $result, $BarcodeName")
                     }
                 }
             })
@@ -301,7 +313,9 @@ class MainActivity : FlutterActivity() {
 
     // QRの読み取り開始
     private fun startScanQRCode(): Boolean {
-        barcodeDecoder?.startScan()
+        if(isInitQR){
+            barcodeDecoder?.startScan()
+        }
 
         return true
     }
@@ -335,9 +349,9 @@ class MainActivity : FlutterActivity() {
 
     // QRの読み取り終了
     private fun stopScanQRCode(): Boolean {
-        barcodeDecoder = BarcodeFactory.getInstance().getBarcodeDecoder()
-        barcodeDecoder?.open(this)
-        isInitQR = true
+        if(isInitQR){
+            barcodeDecoder?.stopScan()
+        }
 
         return true
     }
@@ -352,7 +366,6 @@ class MainActivity : FlutterActivity() {
 
         return true
     }
-
 
 
     // 初期化

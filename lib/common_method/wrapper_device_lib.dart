@@ -46,6 +46,11 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('startQRScan') ?? false;
   }
 
+  // QRコード停止
+  static Future<bool> stopQRScan() async {
+    return await _devChannel.invokeMethod<bool>('stopQRScan') ?? false;
+  }
+
   // QRコード終了
   static Future<bool> termQR() async {
     return await _devChannel.invokeMethod<bool>('TermQR') ?? false;
