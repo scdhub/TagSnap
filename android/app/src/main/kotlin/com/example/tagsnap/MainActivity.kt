@@ -327,9 +327,23 @@ class MainActivity : FlutterActivity() {
                         // 結果情報格納の初期化
                         latestQRInfo = emptyMap()
                     } else {
-                        var result = barcodeEntity.getResultCode()
-                        var BarcodeName = barcodeEntity.getBarcodeName()
-                        Log.d("Kotlin:MainActivity", "QR情報受信失敗 $result, $BarcodeName")
+                        // 失敗時のデータを取得
+                        convertReceiveQR(barcodeEntity)
+
+                        // flutterの制約によりメインスレッドで必ず返さないといけない
+                        runOnUiThread {
+                            // デバッグ用
+                            // 情報の取得
+                            var result = barcodeEntity.getResultCode()
+                            var BarcodeName = barcodeEntity.getBarcodeName()
+                            Log.d("Kotlin:MainActivity", "QR情報受信失敗 $result, $BarcodeName")
+
+                            // flutterへの情報送信
+                            eventSink?.success(latestQRInfo)
+                            // デバッグ用ログ
+                            Log.d("Kotlin:MainActivity", "QR失敗情報送信")
+
+                        }
                     }
                 }
             })
@@ -348,11 +362,6 @@ class MainActivity : FlutterActivity() {
 
     // QR結果情報を格納用MAPに変換
     private fun convertReceiveQR(barcodeEntity: BarcodeEntity) {
-
-        // 情報として得られるものが不明確なため保留
-        // uhfTagInfo.getExtraData(String) // 引数がkey情報
-        // 戻り値がAPI内のクラスになるため無視
-        // uhfTagInfo.getChipInfo() // 戻り値はUHFTAGInfo.ChipInfo
 
         // 格納前に成形が必要な情報を受ける(nullだったら空の配列にする)
         val BarcodeDataBytes: ByteArray = barcodeEntity.getBarcodeBytesData() ?: ByteArray(0)
