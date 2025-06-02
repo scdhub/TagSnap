@@ -56,7 +56,7 @@ class MainActivity : FlutterActivity() {
     private lateinit var audioManager: AudioManager
 
     //NFC判定（光嶋追加）
-    private val CHANNEL = "com.example.tagsnap/settings"
+    private val settingChannel = "com.example.tagsnap/settings"
 
 
     // 作業メモ
@@ -117,7 +117,7 @@ class MainActivity : FlutterActivity() {
         }
 
         // NFC設定画面を開くチャンネルの追加
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler{call: MethodCall, result: MethodChannel.Result ->
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, settingChannel).setMethodCallHandler{call: MethodCall, result: MethodChannel.Result ->
             if (call.method == "openNfcSettings") {
                 val intent = Intent(Settings.ACTION_NFC_SETTINGS)
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
