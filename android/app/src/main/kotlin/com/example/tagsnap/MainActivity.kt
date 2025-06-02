@@ -302,6 +302,7 @@ class MainActivity : FlutterActivity() {
         if(!isInitQR) {
             barcodeDecoder = BarcodeFactory.getInstance().getBarcodeDecoder()
             barcodeDecoder?.open(this)
+            isInitQR = true
 
             // 結果情報受信時はここでflutter側への応答を返す
             barcodeDecoder?.setDecodeCallback(object : BarcodeDecoder.DecodeCallback {
@@ -376,6 +377,7 @@ class MainActivity : FlutterActivity() {
     private fun stopScanQRCode(): Boolean {
         if(isInitQR){
             barcodeDecoder?.stopScan()
+            isInitQR = false
         }
 
         return true
