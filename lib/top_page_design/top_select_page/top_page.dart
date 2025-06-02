@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_inventory_btn.dart';
-import 'package:tagsnap/top_page_design/top_select_page_btn/top_judgment_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_led_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_loading_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_location_btn.dart';
@@ -9,6 +8,8 @@ import 'package:tagsnap/top_page_design/top_select_page_btn/top_search_btn.dart'
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_setting_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_tagnav_bt.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_writing_btn.dart';
+
+import '../top_select_page_btn/top_authentication_btn.dart';
 
 
 //ホーム画面全体のデザイン
@@ -121,7 +122,7 @@ class _TopPageState extends State<TopPage> {
                   // TopQrBtn(),
 
                   // 真贋判定
-                  TopJudgmentBtn(),
+                  TopAuthenticationBtn(),
 
                   // 押下できる
                   TopTagnavBt(),
