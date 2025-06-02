@@ -277,8 +277,9 @@ class _LoadingPageState extends State<LoadingPage>
           // QRに関する情報の取得(仮)
           var getQRInfo = event.data;
           var getData = getQRInfo.barcodeData;
+          await WrapperDeviceLib.startQRScan();
           //　連続読取り
-          await WrapperDeviceLib.stopQRScan();
+          // await WrapperDeviceLib.stopQRScan();
         }
       }, onError: (error) {
         print("epcStreamエラー: $error");
@@ -286,61 +287,45 @@ class _LoadingPageState extends State<LoadingPage>
     }
   }
 
-  // 読み取り開始/停止処理
   Future<void> readDeviceScanStartStop() async {
-    switch (_outerController.index) {
-      case 0: // タグ(RFID)
-        if (!isReading) {
-          isReading = true;
-          await WrapperDeviceLib.startRFIDScan();
-        } else {
-          isReading = false;
-          await WrapperDeviceLib.stopRFIDScan();
-        }
-        break;
+    bool ret = false;
 
-      case 1: // QRコード
-        if (!isQrReading) {
-          isQrReading = true;
-          await WrapperDeviceLib.startQRScan();
-        } else {
-          isQrReading = false;
-          await WrapperDeviceLib.stopQRScan();
-        }
-        break;
+    // タグ（RFID）タブ（index == 0）の場合
+    if (_outerController.index == 0) {
+      if (!isReading) {
+        // RFID スキャン開始
+        ret = await WrapperDeviceLib.startRFIDScan();
+      } else {
+        // RFID スキャン停止
+        ret = await WrapperDeviceLib.stopRFIDScan();
+      }
 
-      case 2: // バーコード（同様に必要なら追加）
-      // …
-        break;
+      if (ret) {
+        // 成功したら isReading をトグル!　フラグは必ず OFF になる
+        isReading = !isReading;
+        isQrReading = false;
+        setState(() {});
+      }
     }
-    setState(() {}); // ボタン表示を更新
+    // QRコードタブ（index == 1）の場合
+    else if (_outerController.index == 1) {
+      if (!isQrReading) {
+        // QR スキャン開始
+        ret = await WrapperDeviceLib.startQRScan();
+      } else {
+        // QR スキャン停止
+        ret = await WrapperDeviceLib.stopQRScan();
+      }
+
+      if (ret) {
+        // 成功したら isQrReading をトグル、RFIDフラグは必ず OFF に
+        isQrReading = !isQrReading;
+        isReading = false;
+        setState(() {});
+      }
+    }
+    // バーコードタブ（index == 2）で（!isbarcodeReading）
   }
-
-
-
-  // Future<void> readDeviceScanStartStop() async {
-  //   bool ret = false;
-  //   // タグ読み込み
-  //   if (0 == _outerController.index) {
-  //     if (!isReading) {
-  //       // 常に連続スキャンを開始（Once は使わない）
-  //       ret = await WrapperDeviceLib.startRFIDScan();
-  //     } else {
-  //       ret = await WrapperDeviceLib.stopRFIDScan();
-  //     }
-  //   }
-  //   // QRコード
-  //   else if (1 == _outerController.index) {
-  //     ret = await WrapperDeviceLib.startQRScan();
-  //   }
-  //   // 現状QRは連続読み込みがないためボタンはトグルにしない
-  //   if (0 == _outerController.index) {
-  //     if (ret) {
-  //       toggleReading();
-  //       setState(() {});
-  //     }
-  //   }
-  // }
 
   //開始、停止ボタン
   void toggleReading() {
@@ -385,30 +370,6 @@ class _LoadingPageState extends State<LoadingPage>
       }
     });
   }
-
-  // // 管理用 CSV 読み込み
-  // Future<void> _loadCsvMapping(String bodyType) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   // タブごとに異なるキーを読む
-  //   final key = 'managementCsvPath_$bodyType';
-  //   final csvPath = prefs.getString(key);
-  //   if (csvPath != null && await File(csvPath).exists()) {
-  //     final content = await File(csvPath).readAsString();
-  //     final rows = const CsvToListConverter(eol: '\r\n', shouldParseNumbers: false)
-  //         .convert(content);
-  //     // 同じロジックで managementMap を作成
-  //     managementMap.clear();
-  //     for (var i = 1; i < rows.length; i++) {
-  //       final cols = rows[i].map((c) => c.toString().trim()).toList();
-  //       managementMap[cols[1]] = {
-  //         '種別': cols[2],
-  //         '管理番号': cols[3],
-  //       };
-  //     }
-  //   } else {
-  //     managementMap.clear();
-  //   }
-  // }
 
   // epcList を更新したあと、必ず呼ぶ
   void refreshHimoduke() {
@@ -884,10 +845,20 @@ class _LoadingPageState extends State<LoadingPage>
                   style: ElevatedButton.styleFrom(
                     // disable 時は自動的にグレイアウトされます
                     backgroundColor:
-                        isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D),
+                    (_outerController.index == 0)
+                        ? (isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D))
+
+                        : (_outerController.index == 1)
+                            ? (isReading
+                                ? Color(0xFF0D64FD) : Color(0xFFFD0D8D))
+                            : Color(0xFFFD0D8D), // バーコードタブの！2ができたら上コピペして使っていいかも
                   ),
                   child: Text(
-                    isReading ? '停止' : '読込み開始',
+                    (_outerController.index == 0)
+                        ? (isReading ? '停止' : '読込み開始')
+                        : (_outerController.index == 1)
+                        ? (isQrReading ? '停止' : '読込み開始')
+                        : '読込み開始',
                     style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),

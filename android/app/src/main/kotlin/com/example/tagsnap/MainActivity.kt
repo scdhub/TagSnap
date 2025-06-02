@@ -56,7 +56,7 @@ class MainActivity : FlutterActivity() {
     private lateinit var audioManager: AudioManager
 
     //NFC判定（光嶋追加）
-    private val CHANNEL = "com.example.nfc/settings"
+    private val CHANNEL = "com.example.tagsnap/settings"
 
 
     // 作業メモ
