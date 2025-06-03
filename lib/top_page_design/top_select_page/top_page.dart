@@ -4,6 +4,7 @@ import 'package:tagsnap/top_page_design/top_select_page_btn/top_led_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_loading_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_location_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_qr_btn.dart';
+import 'package:tagsnap/top_page_design/top_select_page_btn/top_reading_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_search_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_setting_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_tagnav_bt.dart';
@@ -76,7 +77,7 @@ class _TopPageState extends State<TopPage> {
                   // TopWritingBtn(),
 
                   //押下できる
-                  TopLoadingBtn(),
+                  TopReadingBtn(),
 
                   //押下できない
                   IgnorePointer(
