@@ -1,8 +1,11 @@
-import 'package:csv/csv.dart';
+//　Led画面に遷移する処理をコメント化しているので使う際は外す
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:tagsnap/reading_page/Processing/csvdata_save.dart';
+import 'package:tagsnap/reading_page/widgets/header.dart';
+import 'package:tagsnap/selected_tag_datails/selected_tag_details.dart';
 import 'dart:async';
 import '../../common_screen_processing/scroll.dart';
 import '../../led_page/led_page.dart';
@@ -10,12 +13,6 @@ import '../../main.dart'; // インポートして自動停止ボタンを切り
 import '../../search_page/search_page.dart';
 import '../../theme.dart';
 import 'package:tagsnap/common_method/wrapper_device_lib.dart';
-import 'package:tagsnap/common_method/taginfo_data.dart';
-import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
-
-import '../Loading_page/Processing/csvdata_save.dart';
-import '../Processing/csvdata_save.dart';
 import 'Processing/csv_mapping_loader.dart';
 
 class ReadingPage extends StatefulWidget {
@@ -39,7 +36,9 @@ class _ReadingPageState extends State<ReadingPage>
   late TabController _tabController;
   int? selectedIndex; // 選択された項目のインデックス
 
-  String copiedEPC = ""; // コピーしたEPCを保持
+  // コピーしたEPCを保持
+  String copiedEPC = "";
+
   String _currentTab = "EPC";
 
   // 各タブのデータ（実際は外部から受け取る）
@@ -82,7 +81,6 @@ class _ReadingPageState extends State<ReadingPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
 
     _tabController = TabController(length: 3, vsync: this)
       ..addListener(() {
@@ -142,9 +140,11 @@ class _ReadingPageState extends State<ReadingPage>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
     routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
   }
 
+  //　リソースの処理を担う
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this); // ライフサイクル監視解除
@@ -182,12 +182,20 @@ class _ReadingPageState extends State<ReadingPage>
     }
   }
 
+  //別タブに宣したときに判定
   void stopReading() async {
     if (isReading) {
       await WrapperDeviceLib.stopRFIDScan();
+      isReading = false;
+      // toggleReading(); // ボタンの状態を更新
+    }
+    if(isQrReading) {
+      await WrapperDeviceLib.stopQRScan();
+      isQrReading = false;
       toggleReading(); // ボタンの状態を更新
     }
   }
+
 
   // 受信周りの初期化
   Future<void> initializeDevice() async {
@@ -233,6 +241,7 @@ class _ReadingPageState extends State<ReadingPage>
           // 最後にUI更新
           updateData(epcList, "EPC");
           updateData(himodukeList, "Himoduke");
+
         } else if (event is QRInfoDataEvent) {
           // QRに関する情報の取得(仮)
           var getQRInfo = event.data;
@@ -245,9 +254,9 @@ class _ReadingPageState extends State<ReadingPage>
     }
   }
 
+
   Future<void> readDeviceScanStartStop() async {
     bool ret = false;
-
     // タグ（RFID）タブ（index == 0）の場合
     if (_outerController.index == 0) {
       if (!isReading) {
@@ -289,6 +298,7 @@ class _ReadingPageState extends State<ReadingPage>
   void toggleReading() {
     setState(() {
       isReading = !isReading;
+      isQrReading = !isQrReading;
     });
   }
 
@@ -373,9 +383,11 @@ class _ReadingPageState extends State<ReadingPage>
       items: [
         PopupMenuItem(value: "search", child: Text("探索")),
         PopupMenuItem(value: "copy", child: Text("コピー")),
+        PopupMenuItem(value: "copy", child: Text("詳細")),
         // 未実装機能無効化対応のためコメントアウト&一時対応に差し替え
         //PopupMenuItem(value: "led", child: Text("LED")),
         PopupMenuItem(value: "led", enabled: false, child: Text("LED"),
+
         ),
       ],
     );
@@ -388,11 +400,20 @@ class _ReadingPageState extends State<ReadingPage>
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => SearchPage(
-                initialSelectedEpc: selectedEPC,
-                initialSelectedIndex: index, // index がそのまま使えるなら渡しておく
-              ))); //（）に引数を持っていく。SearchPageでもうう。
+              builder: (context) =>
+                  SearchPage(
+                    initialSelectedEpc: selectedEPC,
+                    initialSelectedIndex: index, // index がそのまま使えるなら渡しておく
+                  ))); //（）に引数を持っていく。SearchPageでもうう。
 
+    }else if(result == 'selectedtagdetails'){
+      Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => SelectedTagDetails(
+            initialSelectedEpc: selectedEPC,
+            initialSelectedIndex: index,
+          )));
+      
     } else if (result == "led") {
       Navigator.push(
           context,
@@ -660,9 +681,7 @@ class _ReadingPageState extends State<ReadingPage>
 
 
 
-
-
-    //UI
+    //UI 上部
     return Column(
       children: [
         Container(
@@ -724,10 +743,8 @@ class _ReadingPageState extends State<ReadingPage>
           controller: _headerScrollController,
           child: Container(
             width: finalWidth,
-            child: buildRow(
-              null,
-              selectedColumns,
-              isHeader: true,
+            child: Header(
+              selectedColumns: selectedColumns,
               cellWidth: cellWidth,
             ),
           ),
@@ -797,8 +814,7 @@ class _ReadingPageState extends State<ReadingPage>
                         ? (isReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D))
 
                         : (_outerController.index == 1)
-                        ? (isReading
-                        ? Color(0xFF0D64FD) : Color(0xFFFD0D8D))
+                        ? (isQrReading ? Color(0xFF0D64FD) : Color(0xFFFD0D8D))
                         : Color(0xFFFD0D8D), // バーコードタブの！2ができたら上コピペして使っていいかも
                   ),
                   child: Text(
@@ -899,9 +915,9 @@ class _ReadingPageState extends State<ReadingPage>
             ),
           ),
         ),
-        // スワイプ不可＋ controller 側で補正済み
         body: TabBarView(
           controller: _outerController,
+          //指でのスワイプで移動するのをお無効化
           physics: NeverScrollableScrollPhysics(),
           children: [
             // タグ読み取り
