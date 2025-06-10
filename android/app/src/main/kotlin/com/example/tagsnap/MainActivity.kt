@@ -46,6 +46,7 @@ class MainActivity : FlutterActivity() {
 
     // QR用
     private var latestQRInfo: Map<String, Any> = emptyMap()
+    private var qrScanning = false
 
     // Dartファイル側との通信を行うための共通文言
     private val channel = "com.example.tagsnap/DevChannel"
@@ -309,6 +310,7 @@ class MainActivity : FlutterActivity() {
                 override fun onDecodeComplete(barcodeEntity: BarcodeEntity){
                     // 成功時
                     if (barcodeEntity.getResultCode() === BarcodeDecoder.DECODE_SUCCESS) {
+                        qrScanning = false
                         // 結果情報を格納
                         convertReceiveQR(barcodeEntity)
                         // flutterの制約によりメインスレッドで必ず返さないといけない
@@ -327,6 +329,7 @@ class MainActivity : FlutterActivity() {
                         // 結果情報格納の初期化
                         latestQRInfo = emptyMap()
                     } else {
+                        qrScanning = false
                         // 失敗時のデータを取得
                         convertReceiveQR(barcodeEntity)
 
@@ -355,6 +358,7 @@ class MainActivity : FlutterActivity() {
     private fun startScanQRCode(): Boolean {
         if(isInitQR){
             barcodeDecoder?.startScan()
+            qrScanning = true
         }
 
         return true
@@ -385,8 +389,11 @@ class MainActivity : FlutterActivity() {
     // QRの読み取り終了
     private fun stopScanQRCode(): Boolean {
         if(isInitQR){
-            barcodeDecoder?.stopScan()
-            isInitQR = false
+            if(qrScanning) {
+                barcodeDecoder?.stopScan()
+                isInitQR = false
+                qrScanning = false
+            }
         }
 
         return true
