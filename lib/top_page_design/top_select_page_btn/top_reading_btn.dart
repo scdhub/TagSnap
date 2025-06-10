@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:tagsnap/Loading_page/loading_page.dart';
 import 'package:tagsnap/reading_page/reading_page.dart';
 
 
