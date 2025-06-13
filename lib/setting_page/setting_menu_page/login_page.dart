@@ -17,13 +17,25 @@ class _LoginPage extends State<LoginPage> {
   final TextEditingController _accountController = TextEditingController(text: 'test@scd.jp');
   final TextEditingController _passwordController = TextEditingController(text: '12345678');
 
+
   Future<Map<String, dynamic>?> startLogin() async {
     // ログイン処理実行
     var result = await ApiLogin().loginServer(_accountController.text,
         _passwordController.text, SharedPreferenceInfo().deviceUUID);
 
+
+
     return result;
   }
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferenceInfo().init().then((_) {
+      setState((){}); // deviceUUID が読み込まれたら再描画したいなら
+    });
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -121,6 +133,7 @@ class _LoginPage extends State<LoginPage> {
             Center(
               child: ElevatedButton(
                 onPressed: () async {
+
                   //ログイン処理
                   final result = await startLogin();
 
@@ -135,12 +148,28 @@ class _LoginPage extends State<LoginPage> {
                   //成功時は SharedPreferences に保存して画面遷移
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setBool('loggedIn', true);
+
+                  // トークン保存する処理
+                  final token = result['token'];
+                  if (token != null) {
+                    await TokenManager.saveToken(token);
+                    print('トークンを保存しました: $token');
+                    final token1 = await TokenManager.loadToken();
+                    final token2 = token as String;
+                    print('同じ？ ${token1 == token2}');
+
+                  } else {
+                    print('トークンが null でした');
+                  }
+
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
                       builder: (_) => const TopPage(title: 'TagSnap'),
                     ),
                   );
+                  return;
                 },
+
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
                   shape: RoundedRectangleBorder(

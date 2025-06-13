@@ -124,7 +124,7 @@ class _ReadingPageState extends State<ReadingPage>
         setState(() {});
       });
 
-    // ── ここで ScrollController の同期リスナーを追加 ──
+    // ここで ScrollController の同期リスナー
     _headerScrollController.addListener(() {
       if (_listScrollController.hasClients &&
           _listScrollController.offset != _headerScrollController.offset) {
@@ -304,7 +304,7 @@ class _ReadingPageState extends State<ReadingPage>
           //   });
           // }
 
-          // 紐付けリスト再構築
+          // 紐付けリスト
           himodukeQrList = qrList.map((e) {
             final epc = e["EPC"]!;
             final info = managementMap[epc] ?? {};
@@ -458,7 +458,7 @@ class _ReadingPageState extends State<ReadingPage>
       items: [
         PopupMenuItem(value: "search", child: Text("探索")),
         PopupMenuItem(value: "copy", child: Text("コピー")),
-        // PopupMenuItem(value: "copy", child: Text("詳細")),
+        PopupMenuItem(value: "selectedtagdetails", child: Text("詳細")),
         // 未実装機能無効化対応のためコメントアウト&一時対応に差し替え
         //PopupMenuItem(value: "led", child: Text("LED")),
         PopupMenuItem(
@@ -893,7 +893,8 @@ class _ReadingPageState extends State<ReadingPage>
                   //ボタン有効化
                   onPressed: readDeviceScanStartStop,
                   //ボタンを無効化にする
-                  // (_outerController.index == 0) ? readRFIDStartStop : null,
+                  // バーコードタブのときだけ無効化
+                  // onPressed: (_outerController.index == 2) ? null : readDeviceScanStartStop,
                   style: ElevatedButton.styleFrom(
                     // disable 時は自動的にグレイアウトされます
                     backgroundColor: (_outerController.index == 0)

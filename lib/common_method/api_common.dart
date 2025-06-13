@@ -21,6 +21,8 @@ class ApiCommonDefine {
   final String deactivatePath = 'tagsnap/device/deactivation';
   // ログイン
   final String loginPath = 'smartlogix/login/device';
+  // RFIDタグからアイテム詳細を取得
+  final String tagproductsPath = 'tagsnap/products/rfid/';
 }
 
 // UUID作業用のクラス
@@ -139,12 +141,16 @@ class SharedPreferenceInfo {
   // シングルトンで使用する
   static final SharedPreferenceInfo _instance = SharedPreferenceInfo
       ._internal();
+
   factory SharedPreferenceInfo() => _instance;
+
   SharedPreferenceInfo._internal();
+
   SharedPreferences? _prefs;
 
   // デバイスのUUID（初期化時にSharedPreferencesから取得）
   static String _deviceUUID = '';
+
   // アクティベーション時にユーザ入力後はSharedPreferencesから取得or書き込みする情報
   static String _deviceName = '';
   static String _activationCode = '';
@@ -161,13 +167,13 @@ class SharedPreferenceInfo {
     print(_deviceUUID);
     print(_deviceName);
     print(_activationCode);
-
-
   }
 
   // Getter
   String get deviceUUID => _deviceUUID;
+
   String get deviceName => _deviceName;
+
   String get activationCode => _activationCode;
 
   // Setter
@@ -190,11 +196,59 @@ class SharedPreferenceInfo {
     await prefs.setString(SharedPreferenceKeys().devUUID, _deviceUUID);
     await prefs.setString(SharedPreferenceKeys().devName, _deviceName);
     await prefs.setString(SharedPreferenceKeys().actCode, _activationCode);
-
   }
 
   // 終了処理
   Future<void> dispose() async {
     await writeSharedPreference();
   }
+}
+
+class TokenManager {
+  static const String _tokenKey = 'auth_token';
+  static const String _tokenExpireKey = 'auth_token_expire';
+
+  // トークンを保存
+  static Future<void> saveToken(String token, {DateTime? expireAt}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+
+  }
+
+  // トークンを取得
+  static Future<String?> loadToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    print('▶ TokenManager.loadToken() => $token');
+    return token;
+  }
+
+
+
+  // トークンの有効期限が切れているかどうか
+  static Future<bool> isTokenExpired() async {
+    final prefs = await SharedPreferences.getInstance();
+    final expireStr = prefs.getString(_tokenExpireKey);
+    if (expireStr == null) return false;
+
+    final expireAt = DateTime.tryParse(expireStr);
+    if (expireAt == null) return false;
+
+    return DateTime.now().isAfter(expireAt);
+  }
+
+  // トークンが存在しているか
+  static Future<bool> hasToken() async {
+    final token = await loadToken();
+    return token != null && token.isNotEmpty;
+  }
+
+  // トークン削除（ログアウト時など）
+  static Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+    await prefs.remove(_tokenExpireKey);
+    print('🗑 TokenManager.clearToken(): token removed');
+  }
+
 }
