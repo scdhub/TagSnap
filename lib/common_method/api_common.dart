@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -223,9 +224,25 @@ class TokenManager {
     return token;
   }
 
+  // JWT のペイロード部分をデコードして JSON 文字列で返す！　確認用に設置：消した方が良いかな→相談
+  static String decodeJwtPayload(String token) {
+    final parts = token.split('.');
+    final payload = parts[1];
+    final normalized = base64Url.normalize(payload);
+    final decoded = utf8.decode(base64Url.decode(normalized));
+    return decoded;
+  }
 
 
-  // トークンの有効期限が切れているかどうか
+  // トークン内の tenant_uuid をコンソールに出力！　確認用に設置：消した方が良いかな→相談
+  static void printTenantUuid(String token) {
+    final payloadJson = decodeJwtPayload(token);
+    final payloadMap = json.decode(payloadJson);
+    print('▶ tenant_uuid: ${payloadMap['authUserInfo']['tenant_uuid']}');
+  }
+
+
+  // トークンの有効期限が切れているか確認したい　確認用に設置：消した方が良いかな→相談
   static Future<bool> isTokenExpired() async {
     final prefs = await SharedPreferences.getInstance();
     final expireStr = prefs.getString(_tokenExpireKey);
@@ -237,7 +254,7 @@ class TokenManager {
     return DateTime.now().isAfter(expireAt);
   }
 
-  // トークンが存在しているか
+  // トークンが存在しているか確認したい　確認用に設置：消した方が良いかな→相談
   static Future<bool> hasToken() async {
     final token = await loadToken();
     return token != null && token.isNotEmpty;
