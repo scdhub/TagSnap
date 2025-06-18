@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../dummy_data/daialog_succes_or_false.dart';
@@ -14,8 +16,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPage extends State<LoginPage> {
-  final TextEditingController _accountController = TextEditingController(text: 'test@scd.jp');
-  final TextEditingController _passwordController = TextEditingController(text: '12345678');
+  final TextEditingController _accountController = TextEditingController(text: 'r-oshima@newland.co.jp');
+  final TextEditingController _passwordController = TextEditingController(text: '');
+
 
 
   Future<Map<String, dynamic>?> startLogin() async {
@@ -35,6 +38,8 @@ class _LoginPage extends State<LoginPage> {
       setState((){}); // deviceUUID が読み込まれたら再描画したいなら
     });
   }
+
+
 
 
   @override
@@ -149,23 +154,38 @@ class _LoginPage extends State<LoginPage> {
                   final prefs = await SharedPreferences.getInstance();
                   await prefs.setBool('loggedIn', true);
 
+
                   // トークン保存する処理
                   final token = result['token'];
                   if (token != null) {
                     await TokenManager.saveToken(token);
                     print('トークンを保存しました: $token');
+
+                    // トークンのデコードと tenant_uuid の表示を追加
+                    final parts = token.split('.');
+                    final payload = parts[1];
+                    final normalized = base64Url.normalize(payload);
+                    final decoded = utf8.decode(base64Url.decode(normalized));
+                    final map = json.decode(decoded);
+                    print('▶ tenant_uuid: ${map['authUserInfo']['tenant_uuid']}');
+                    print('★ JWT Payload 全体: $map');
+
+                    // 比較
                     final token1 = await TokenManager.loadToken();
                     final token2 = token as String;
                     print('同じ？ ${token1 == token2}');
+
 
                   } else {
                     print('トークンが null でした');
                   }
 
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => const TopPage(title: 'TagSnap'),
-                    ),
+
+
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => TopPage(title: 'TagSnap',)),
+                        (route) => false, // すべての前画面を削除
                   );
                   return;
                 },

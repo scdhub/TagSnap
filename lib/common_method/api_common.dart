@@ -23,7 +23,9 @@ class ApiCommonDefine {
   // ログイン
   final String loginPath = 'smartlogix/login/device';
   // RFIDタグからアイテム詳細を取得
-  final String tagproductsPath = 'tagsnap/products/rfid/';
+  final String tagProductsPath = 'tagsnap/products/rfid/';
+  // // QRコードからアイテム詳細を取得
+  // final String qrProductsPath = 'tagsnap/products/qrcode/';
 }
 
 // UUID作業用のクラス
@@ -269,3 +271,4 @@ class TokenManager {
   }
 
 }
+
