@@ -226,6 +226,7 @@ class _ReadingPageState extends State<ReadingPage>
     if (isInit) {
       subscription = WrapperDeviceLib.receiveData().listen((event) async {
         if (event is TagInfoDataEvent) {
+          if (!isReading) return;
           var getTagInfo = event.data;
           if (!tagList.contains(getTagInfo.epc)) {
             tagList.add(getTagInfo.epc);
@@ -261,6 +262,7 @@ class _ReadingPageState extends State<ReadingPage>
           updateData(epcList, "EPC");
           updateData(himodukeList, "Himoduke");
         } else if (event is QRInfoDataEvent) {
+          if (!isQrReading) return;
           final getQrInfo = event.data;
           final barcode = getQrInfo.barcodeData.trim(); // ←1つのEPCとして処理
           print("受信したQRコード: $barcode");
@@ -285,24 +287,6 @@ class _ReadingPageState extends State<ReadingPage>
             }
           }
 
-          // QRデータもEPCリストに統合することがあればここをコメント外す。
-          // if (!tagList.contains(barcode)) {
-          //   tagList.add(barcode);
-          //   epcList.add({
-          //     "No": (epcList.length + 1).toString(),
-          //     "EPC": barcode,
-          //     "種別": managementMap[barcode]?["種別"] ?? "",
-          //     "管理番号": managementMap[barcode]?["管理番号"] ?? "",
-          //     "回数": "1",
-          //   });
-          //   himodukeList.add({
-          //     "No": (himodukeList.length + 1).toString(),
-          //     "EPC": barcode,
-          //     "種別": managementMap[barcode]?["種別"] ?? "",
-          //     "管理番号": managementMap[barcode]?["管理番号"] ?? "",
-          //     "回数": "1",
-          //   });
-          // }
 
           // 紐付けリスト
           himodukeQrList = qrList.map((e) {
@@ -444,10 +428,20 @@ class _ReadingPageState extends State<ReadingPage>
   }
 
   // メニューを表示する関数
-  void showPopupMenu(BuildContext context, Offset position, int index) async {
+  void showPopupMenu(BuildContext context, Offset position, int index,String bodyType,) async {
     final RenderBox overlay =
         Overlay.of(context).context.findRenderObject() as RenderBox;
-    final selectedEPC = epcList[index]["EPC"] ?? "";
+    // final selectedEPC = epcList[index]["EPC"] ?? "";
+
+    // 2. bodyType に応じて正しいリストを参照
+    String selectedEPC;
+    if (bodyType == 'タグ') {
+      selectedEPC = epcList[index]["EPC"];
+    } else if (bodyType == 'QRコード') {
+      selectedEPC = qrList[index]["EPC"];
+    } else {
+      selectedEPC = barcodeList[index]["EPC"];
+    }
 
     final result = await showMenu(
       context: context,
@@ -485,8 +479,8 @@ class _ReadingPageState extends State<ReadingPage>
           context,
           MaterialPageRoute(
               builder: (context) => SelectedTagDetails(
-                    initialSelectedEpc: selectedEPC,
-                    initialSelectedIndex: index,
+                initialSelectedCode: selectedEPC,
+                isQr: bodyType == 'QRコード',
                   )));
     } else if (result == "led") {
       Navigator.push(
@@ -700,7 +694,7 @@ class _ReadingPageState extends State<ReadingPage>
   }
 
   // buildTabContentメソッド
-  Widget buildTabContent(String tabType) {
+  Widget buildTabContent(String tabType, String bodyType) {
     final outer = _outerController.index;
     final isTagTab = outer == 0;
     final isQrTab = outer == 1;
@@ -860,7 +854,7 @@ class _ReadingPageState extends State<ReadingPage>
                     onLongPressStart: (details) {
                       setState(() {
                         selectedIndex = index;
-                        showPopupMenu(context, details.globalPosition, index);
+                        showPopupMenu(context, details.globalPosition, index,bodyType);
                       });
                     },
                     child: buildRow(
@@ -1045,7 +1039,7 @@ class _ReadingPageState extends State<ReadingPage>
           child: TabBarView(
             controller: _innerController,
             children: tabTypes.map((tabType) {
-              return buildTabContent(tabType);
+              return buildTabContent(tabType,bodyType);
             }).toList(),
           ),
         ),
