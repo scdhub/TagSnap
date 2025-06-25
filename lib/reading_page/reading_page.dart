@@ -233,14 +233,14 @@ class _ReadingPageState extends State<ReadingPage>
             epcList.add({
               "No": (epcList.length + 1).toString(),
               "EPC": getTagInfo.epc,
-              "種別": managementMap[getTagInfo.epc]?["種別"] ?? "",
+              "名称": managementMap[getTagInfo.epc]?["種別"] ?? "",
               "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
               "回数": "1",
             });
             himodukeList.add({
               "No": (himodukeList.length + 1).toString(),
               "EPC": getTagInfo.epc,
-              "種別": managementMap[getTagInfo.epc]?["種別"] ?? "",
+              "名称": managementMap[getTagInfo.epc]?["種別"] ?? "",
               "管理番号": managementMap[getTagInfo.epc]?["管理番号"] ?? "",
               "回数": "1",
             });
@@ -295,7 +295,7 @@ class _ReadingPageState extends State<ReadingPage>
             return {
               "No": e["No"],
               "EPC": epc,
-              "種別": info["種別"] ?? "",
+              "名称": info["種別"] ?? "",
               "管理番号": info["管理番号"] ?? "",
               "回数": e["回数"],
             };
@@ -389,11 +389,12 @@ class _ReadingPageState extends State<ReadingPage>
         };
       } else if (type == "Himoduke") {
         himodukeList = newData;
-        // 紐付けタブでは No, Data, 種別, 管理番号 を表示
+        // 紐付けタブでは No, Data, 名称, 管理番号 を表示
         selectedColumnsMap["Himoduke"] = {
           "No": true,
           "EPC": true,
-          "種別": true,
+          "名称": true,
+          // "種別": true,
           "管理番号": true,
           "回数": true,
         };
@@ -409,7 +410,8 @@ class _ReadingPageState extends State<ReadingPage>
       return {
         "No": e["No"],
         "EPC": epc,
-        "種別": info?["種別"] ?? "",
+        // "種別": info?["種別"] ?? "",
+        "名称": info?["種別"] ?? "",
         "管理番号": info?["管理番号"] ?? "",
         "回数": e["回数"], //回数が読み込まれる
       };
@@ -663,9 +665,9 @@ class _ReadingPageState extends State<ReadingPage>
     required String tabBody,
     required String tabType,
   }) {
-    // まずヘッダは No, EPC, 種別, 管理番号
+    // まずヘッダは No, EPC, 名称, 管理番号
     final List<List<String>> csvData = [
-      ['No', 'EPC', '種別', '管理番号'],
+      ['No', 'EPC', '名称', '管理番号'],
     ];
 
     // 出力対象リストを選択
@@ -685,7 +687,7 @@ class _ReadingPageState extends State<ReadingPage>
       csvData.add([
         (i + 1).toString(),
         e['EPC']?.toString() ?? '',
-        e['種別']?.toString() ?? '',
+        e['名称']?.toString() ?? '',
         e['管理番号']?.toString() ?? '',
       ]);
     }
@@ -731,7 +733,7 @@ class _ReadingPageState extends State<ReadingPage>
       final info = managementMap[key] ?? {};
       return {
         ...e,
-        '種別': info['種別'] ?? '',
+        '名称': info['種別'] ?? '',
         '管理番号': info['管理番号'] ?? '',
       };
     }).toList();
