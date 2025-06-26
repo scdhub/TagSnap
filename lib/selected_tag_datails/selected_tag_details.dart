@@ -19,12 +19,18 @@ class SelectedTagDetails extends StatefulWidget {
 }
 
 class _SelectedTagDetailsState extends State<SelectedTagDetails> {
+  // 未取得の場合はnull
   String? itemName;
   String? itemCode;
   String? errorMessage;
-  //サーバからの取得
+
+  // サーバからの取得
   bool isLoading = true;
+  // ダイアログについて
+  bool isDialogVisible = false;
+
   Map<String, dynamic>? itemDetail;
+
 
   @override
   void initState() {
@@ -53,36 +59,42 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
     final payloadMap = json
         .decode(utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))));
     final int? exp = payloadMap['exp'];
-    final int nowSec = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    final int nowSec = DateTime
+        .now()
+        .millisecondsSinceEpoch ~/ 1000;
 
     if (exp != null) {
       // exp を月日に直す
       final expiryDate =
-          DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true)
-              .toLocal();
+      DateTime.fromMillisecondsSinceEpoch(exp * 1000, isUtc: true)
+          .toLocal();
       print('▶ Token expiry (exp): $exp  → DateTime: $expiryDate');
 
-      //　現在時刻　＞　有効期限
+      //　現在時刻　＜　有効期限　であればいい
       return nowSec >= exp;
     }
 
     return true;
   }
 
+  //　ここから取得
   void _loadItemDetails(String code) async {
     // final item = await ApiRFIDGetTagData.fetchItemDetailByRFID(epc);
     final item = widget.isQr
         ? await ApiQRGetData.fetchItemDetailByQR(code)
         : await ApiRFIDGetData.fetchItemDetailByRFID(code);
+    //バーコードを後々ここに登録
 
     if (item == null) {
       print('取得失敗: レスポンス自体が null');
-      _showErrorDialog('データの取得に失敗しました。\nネットワーク環境を確認してください。');
+      _showErrorDialog(
+          'データの取得に失敗しました。\nネットワーク環境を確認してください。');
       return;
     }
     if (item['success'] != true) {
       print('取得失敗: ${item['message']}');
-      _showErrorDialog('データの取得に失敗しました。\nサーバーからの応答: ${item['message']}');
+      _showErrorDialog(
+          'データの取得に失敗しました。\nサーバーからの応答: ${item['message']}');
       return;
     }
 
@@ -119,18 +131,24 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
       itemName = first['name'];
       itemDetail = first['detail'];
       //　データを取り終わったら読込は終了する
+
       isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    setState(() {
+      isDialogVisible = true;
+    });
+
     return WillPopScope(
-        // true: ポップを許可、false: 拒否
-        onWillPop: () async => !isLoading,
+      onWillPop: () async => !isLoading,
+        // onWillPop: () async => false,
         child: Scaffold(
           resizeToAvoidBottomInset: false,
           appBar: AppBar(
+            // サーバ読込中は戻るボタンを非表示にする
             automaticallyImplyLeading: !isLoading,
             title: Text(
               '詳細',
@@ -145,68 +163,75 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
             elevation: 0,
             toolbarHeight: 80,
           ),
+          //　サーバーから情報を取得する間はインジゲーター
           body: isLoading
               ? const Center(
-                  child: CircularProgressIndicator(
-                  color: Colors.white,
-                ))
+              child: CircularProgressIndicator(
+                color: Colors.white,
+              ))
               : Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('EPC',
-                            style: TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        SizedBox(height: 5),
-                        // サーバー返却のEPCがあればそれを表示。無ければ initialSelectedCodeを表示させるようにする
-                        Text(
-                          itemCode ?? widget.initialSelectedCode,
-                          style: TextStyle(fontSize: 18, color: Colors.white),
-                        ),
-                        SizedBox(
-                          height: 15,
-                        ),
+            padding: const EdgeInsets.all(16.0),
 
-                        Text('名称',
-                            style: TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        SizedBox(height: 5),
-                        Text(itemName!,
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.white)),
-                        SizedBox(height: 30),
-                        Text('詳細',
-                            style: TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        SizedBox(height: 5),
-                        _buildDetailRow(
-                            '価格', '¥${itemDetail?['price'] ?? '-'}'),
-                        _buildDetailRow(
-                            '在庫', '${itemDetail?['stock'] ?? '-'} '),
-                        _buildDetailRow('カテゴリ', itemDetail?['category'] ?? '-'),
-                        _buildDetailRow('通貨', itemDetail?['currency'] ?? '-'),
-                        SizedBox(height: 30),
-                        Text('説明',
-                            style: TextStyle(
-                                fontSize: 25,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        SizedBox(height: 5),
-                        Text(itemDetail?['description'] ?? '-',
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.white)),
-                      ],
-                    ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('EPC',
+                      style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  SizedBox(height: 5),
+                  // EPCがあればそれを表示。無ければ initialSelectedCodeを表示させるようにする
+                  Text(
+                    itemCode ?? widget.initialSelectedCode,
+                    style: TextStyle(fontSize: 18, color: Colors.white),
                   ),
-                ),
+                  SizedBox(
+                    height: 15,
+                  ),
+
+                  Text('名称',
+                      style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  SizedBox(height: 5),
+
+                  Text(itemName!,
+                      style:
+                      TextStyle(fontSize: 18, color: Colors.white)),
+                  SizedBox(height: 30),
+
+                  Text('詳細',
+                      style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  SizedBox(height: 5),
+
+                  _buildDetailRow(
+                      '価格', '¥${itemDetail?['price'] ?? '-'}'),
+                  _buildDetailRow(
+                      '在庫', '${itemDetail?['stock'] ?? '-'} '),
+                  _buildDetailRow('カテゴリ', itemDetail?['category'] ?? '-'),
+                  _buildDetailRow('通貨', itemDetail?['currency'] ?? '-'),
+                  SizedBox(height: 30),
+
+                  Text('説明',
+                      style: TextStyle(
+                          fontSize: 25,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white)),
+                  SizedBox(height: 5),
+
+                  Text(itemDetail?['description'] ?? '-',
+                      style:
+                      TextStyle(fontSize: 18, color: Colors.white)),
+                ],
+              ),
+            ),
+          ),
         ));
   }
 
@@ -231,47 +256,53 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
+      // OSの戻るボタンを押下させない
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text(
-            'エラー',
-            textAlign: TextAlign.center,
-            style: AppTheme.confirmDialogTheme.titleTextStyle,
-          ),
-          content: Text(
-            message,
-            textAlign: TextAlign.center,
-            style: AppTheme.confirmDialogTheme.contentTextStyle,
-          ),
-          actions: [
-            Align(
-              alignment: Alignment.center,
-              child: TextButton(
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: Colors.redAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    side: BorderSide(
-                      color: Colors.red,
-                      width: 2,
+        return WillPopScope(
+            onWillPop: () async => false, // バックキー自体も無効化
+            child: AlertDialog(
+              titleTextStyle: TextStyle(color: Colors.redAccent,fontSize: 25,fontWeight: FontWeight.bold),
+              title: Text(
+                'エラー',
+                textAlign: TextAlign.center,
+                // style: AppTheme.confirmDialogTheme.titleTextStyle,
+              ),
+              content: Text(
+                message,
+                textAlign: TextAlign.center,
+                style: AppTheme.confirmDialogTheme.contentTextStyle,
+              ),
+              actions: [
+                Align(
+                  alignment: Alignment.center,
+                  child: TextButton(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.redAccent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(
+                          color: Colors.red,
+                          width: 2,
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 10),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context); //詳細画面
+                      Navigator.pop(context); //トップ画面に戻る
+                    },
+                    child: Text(
+                      "閉じる",
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 ),
-                onPressed: () {
-                  Navigator.pop(context); //詳細画面
-                  Navigator.pop(context); //トップ画面に戻る
-                },
-                child: Text(
-                  "閉じる",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-          ],
-        );
+              ],
+            ));
       },
     );
   }
