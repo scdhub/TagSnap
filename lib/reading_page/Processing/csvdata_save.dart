@@ -1,5 +1,7 @@
 
-//CSV保存処理を切り出したユーティリティクラス
+// CSV保存処理
+// Reading_page.dart → 保存ボタン押下　→ csvdata_save.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -16,7 +18,6 @@ abstract class DialogService {
   Future<void> showInfo(BuildContext context, String title, String message);
 }
 
-// 標準的な[DialogService]実装
 class DefaultDialogService implements DialogService {
   @override
   Future<void> showInfo(BuildContext context, String title, String message) async {

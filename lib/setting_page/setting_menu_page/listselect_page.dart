@@ -52,7 +52,7 @@ class _ListselectPageState extends State<ListselectPage> {
 
   //SharedPreferences から全タイプの設定をロード
   Future<void> _loadAllSavedFiles() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences. getInstance();
     final newPaths = <String, String?>{};
     _filePaths.forEach((type, _) {
       newPaths[type] = prefs.getString('managementCsvPath_$type');
@@ -75,7 +75,7 @@ class _ListselectPageState extends State<ListselectPage> {
 
     final path = result.files.single.path!;
     try {
-      // ①File を開いて全行読み込み。（UTF-8 の前提。Shift_JIS など違う場合は変換を検討）
+      // ①File を開いて全行読み込み。
       final file = File(path);
       if (!await file.exists()) {
         // 念のためファイルが存在しないケース
@@ -89,14 +89,6 @@ class _ListselectPageState extends State<ListselectPage> {
         _showErrorDialog('ファイルが見つかりませんでした。');
         return;
       }
-
-      // final lines = await file.readAsLines();
-      // // 2) ヘッダー含まれてしまう
-      // if (lines.length == 1) {
-      //   _showErrorDialog(
-      //       '選択された CSV にデータがありません。別のファイルを選択してください。');
-      //   return;
-      // }
 
       // 中身チェック OK なら SharedPreferences に保存
       final prefs = await SharedPreferences.getInstance();
@@ -158,24 +150,12 @@ class _ListselectPageState extends State<ListselectPage> {
       },
     );
   }
-
-
-    //   if (result != null && result.files.single.path != null) {
-    //     final path = result.files.single.path!;
-    //     final prefs = await SharedPreferences.getInstance();
-    //     await prefs.setString('managementCsvPath_$type', path);
-    //     setState(() => _filePaths[type] = path);
-    //     fileSettingOkDialog();
-    //   }
-    // }
-
     //保存済み設定をクリア
     Future<void> _clearCsvFile(String type) async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('managementCsvPath_$type');
       setState(() => _filePaths[type] = null);
     }
-
 
     //セクションウィジェットの共通ビルド
     Widget _buildSection(String type) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tagsnap/selected_tag_datails/selected_tag_details.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_inventory_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_led_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_loading_btn.dart';
@@ -10,6 +11,7 @@ import 'package:tagsnap/top_page_design/top_select_page_btn/top_setting_btn.dart
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_tagnav_bt.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_writing_btn.dart';
 
+import '../top_select_page_btn/datails.dart';
 import '../top_select_page_btn/top_authentication_btn.dart';
 
 
@@ -23,6 +25,8 @@ class TopPage extends StatefulWidget {
 }
 
 class _TopPageState extends State<TopPage> {
+  String? scannedEpc;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,11 +67,11 @@ class _TopPageState extends State<TopPage> {
                 mainAxisSpacing: 28,
                 shrinkWrap: true, // サイズを中身に合わせる
                 physics: NeverScrollableScrollPhysics(), // GridView自体のスクロールはしない
-                children: const [
+                children: [
                   //押下できる
-                  TopSettingBtn(),
+                  const TopSettingBtn(),
                   //押下できない
-                  IgnorePointer(
+                  const IgnorePointer(
                     ignoring: true,
                     child: Opacity(
                       opacity: 0.5,
@@ -77,10 +81,10 @@ class _TopPageState extends State<TopPage> {
                   // TopWritingBtn(),
 
                   //押下できる
-                  TopReadingBtn(),
+                  const TopReadingBtn(),
 
                   //押下できない
-                  IgnorePointer(
+                  const IgnorePointer(
                     ignoring: true,
                     child: Opacity(
                       opacity: 0.5,
@@ -90,10 +94,10 @@ class _TopPageState extends State<TopPage> {
                   // TopInventoryBtn(),
 
                   //押下できる
-                  TopSearchBtn(),
+                  const TopSearchBtn(),
 
                   //押下できない
-                  IgnorePointer(
+                  const IgnorePointer(
                     ignoring: true,
                     child: Opacity(
                       opacity: 0.5,
@@ -103,7 +107,7 @@ class _TopPageState extends State<TopPage> {
                   //TopLedBtn(),
 
                   //押下できない
-                  IgnorePointer(
+                  const IgnorePointer(
                     ignoring: true,
                     child: Opacity(
                       opacity: 0.5,
@@ -113,7 +117,7 @@ class _TopPageState extends State<TopPage> {
                   // TopLocationBtn(),
 
                   //押下できない
-                  IgnorePointer(
+                  const IgnorePointer(
                     ignoring: true,
                     child: Opacity(
                       opacity: 0.5,
@@ -123,10 +127,15 @@ class _TopPageState extends State<TopPage> {
                   // TopQrBtn(),
 
                   // 真贋判定
-                  TopAuthenticationBtn(),
+                  const TopAuthenticationBtn(),
+
+                  // DetailsButton(
+                  //   scannedEpc: scannedEpc, // null のままならテストEPCが使われる
+                  //   isQr: false,
+                  // ),
 
                   // 押下できる
-                  TopTagnavBt(),
+                  const TopTagnavBt(),
                 ],
               ),
             ],

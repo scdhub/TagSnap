@@ -146,6 +146,24 @@ class _ReadingPageState extends State<ReadingPage>
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       managementMap = await _csvMappingLoader.loadMapping('タグ');
+
+      //★★★★★C66以外でのテスト用★★★★★★★★★★★★★★★
+      // const testEpc = '202001010000000000000230';
+      const testEpc = '202001010000000000000230';
+      epcList = [
+        {
+          "No": "1",
+          "EPC": testEpc,
+          "名称": managementMap[testEpc]?["種別"]     ?? "",
+          "管理番号": managementMap[testEpc]?["管理番号"] ?? "",
+          "回数": "1",
+        },
+      ];
+      himodukeList = List.from(epcList); // 同じ内容で紐付けタブにも表示
+      //★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+
+
       // epcList はまだ空でも、ここで selectedColumnsMap を初期化
       updateData(epcList, "EPC");
       updateData(himodukeList, "Himoduke");

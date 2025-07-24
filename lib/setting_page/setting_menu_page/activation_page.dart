@@ -1,6 +1,5 @@
 // import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'dart:io' show Platform;
 // import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tagsnap/common_method/api_activation.dart';
@@ -254,9 +253,9 @@ class _ActivationPageState extends State<ActivationPage> {
 
     // 成功時は SharedPreferences に保存 & 遷移
     if (null != result && result['success'] == true) {
+      await showResultDialog(context, result);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('activated', true);
-
       //成功時の成功分岐を作成する。
       await _onActivateSuccess(
         activationCodeController.text,
@@ -264,14 +263,19 @@ class _ActivationPageState extends State<ActivationPage> {
       );
       setState(() => isActivated = true);
       // setState(() => isActivated = true);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-      );
-    }
 
-    // ダイアログで結果表示（daialog_succes_or_false.dart）
+      //　ログイン時の戻るボタンを削除
+      Navigator.pushAndRemoveUntil(context,
+        MaterialPageRoute(builder: (_) => LoginPage()),
+          (_) => false
+      );
+      return;
+    }
+    // ダイアログで結果表示（daialog_succes_or_false.dartに記載）
     showResultDialog(context, result);
   }
+
+
 
   void _deactivateDialog() {
     showDialog(
