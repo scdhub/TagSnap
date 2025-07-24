@@ -56,16 +56,23 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('TermQR') ?? false;
   }
 
-// // 読み取った情報の戻り値取得
-// static Stream<tagInfoData> get tagInfoStream {
-//   return _devStream.receiveBroadcastStream().map((result) {
-//     if (result is Map) {
-//       return tagInfoData.fromMap(Map<String, dynamic>.from(result));
-//     } else {
-//       throw Exception("Get Error : tagInfoStream");
-//     }
-//   });
-// }
+  // Barcode初期化
+  static Future<bool> initBarcode() async {
+    return await _devChannel.invokeMethod<bool>('initBarcode') ?? false;
+  }
+
+  // Barcode読み取り
+  static Future<bool> startBarcodeScan() async {
+    return await _devChannel.invokeMethod<bool>('scanBarcode') ?? false;
+  }
+
+
+  // Barcode終了
+  static Future<bool> termBarcode() async {
+    return await _devChannel.invokeMethod<bool>('termBarcode') ?? false;
+  }
+
+
 
   // 受信情報をMapの種別ごとに分ける
   static Stream<EventDataInfo> receiveData() async* {

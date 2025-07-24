@@ -15,6 +15,8 @@ import com.rscja.deviceapi.RFIDWithUHFUART
 import com.rscja.deviceapi.entity.InventoryParameter
 import com.rscja.deviceapi.entity.UHFTAGInfo
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback
+import com.rscja.deviceapi.Barcode1D
+import com.rscja.CWDeviceInfo
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
@@ -37,6 +39,8 @@ class MainActivity : FlutterActivity() {
     private var rfid: RFIDWithUHFUART? = null
     private var isInitQR = false
     private var barcodeDecoder: BarcodeDecoder? = null
+    private var isInitB1D = false
+    private var barcode1D: Barcode1D? = null
 
     // 連続送信時のディレイ処理用
     private var isSending = false
@@ -46,7 +50,10 @@ class MainActivity : FlutterActivity() {
 
     // QR用
     private var latestQRInfo: Map<String, Any> = emptyMap()
-    private var qrScanning = false
+
+    // バーコード用
+    private var latestB1DInfo: Map<String, Any> = emptyMap()
+
 
     // Dartファイル側との通信を行うための共通文言
     private val channel = "com.example.tagsnap/DevChannel"
@@ -110,6 +117,23 @@ class MainActivity : FlutterActivity() {
                 // QR終了処理
                 "TermQR" -> {
                     termQR()
+                    result.success(true)
+                }
+
+                // B1系
+                // B1初期化処理
+                "initBarcode" -> {
+                    result.success(initBarcode())
+                }
+
+                // B1スキャン処理
+                "scanBarcode" -> {
+                    result.success(scanBarcode())
+                }
+
+                // B1終了処理
+                "termBarcode" -> {
+                    termBarcode()
                     result.success(true)
                 }
 
@@ -301,6 +325,7 @@ class MainActivity : FlutterActivity() {
     private fun initQR(): Boolean {
         // 初期化処理通過済みで未closeだったら行わない
         if(!isInitQR) {
+            Log.d("Kotlin:MainActivity", "initQRに到達")
             barcodeDecoder = BarcodeFactory.getInstance().getBarcodeDecoder()
             barcodeDecoder?.open(this)
             isInitQR = true
@@ -310,7 +335,6 @@ class MainActivity : FlutterActivity() {
                 override fun onDecodeComplete(barcodeEntity: BarcodeEntity){
                     // 成功時
                     if (barcodeEntity.getResultCode() === BarcodeDecoder.DECODE_SUCCESS) {
-                        qrScanning = false
                         // 結果情報を格納
                         convertReceiveQR(barcodeEntity)
                         // flutterの制約によりメインスレッドで必ず返さないといけない
@@ -329,7 +353,6 @@ class MainActivity : FlutterActivity() {
                         // 結果情報格納の初期化
                         latestQRInfo = emptyMap()
                     } else {
-                        qrScanning = false
                         // 失敗時のデータを取得
                         convertReceiveQR(barcodeEntity)
 
@@ -358,7 +381,6 @@ class MainActivity : FlutterActivity() {
     private fun startScanQRCode(): Boolean {
         if(isInitQR){
             barcodeDecoder?.startScan()
-            qrScanning = true
         }
 
         return true
@@ -389,11 +411,8 @@ class MainActivity : FlutterActivity() {
     // QRの読み取り終了
     private fun stopScanQRCode(): Boolean {
         if(isInitQR){
-            if(qrScanning) {
-                barcodeDecoder?.stopScan()
-                isInitQR = false
-                qrScanning = false
-            }
+            barcodeDecoder?.stopScan()
+            isInitQR = false
         }
 
         return true
@@ -407,6 +426,40 @@ class MainActivity : FlutterActivity() {
             isInitQR = false
         }
 
+        return true
+    }
+
+
+    // Barcodeの初期化処理
+    private fun initBarcode(): Boolean {
+        // 初期化していない状態のみ通過させる
+        if(!isInitB1D) {
+            Log.d("Kotlin:MainActivity", "initBarcodeに到達")
+            barcode1D = Barcode1D.getInstance()
+            barcode1D?.open(this)
+            isInitB1D = true
+        }
+        return isInitB1D
+    }
+
+
+    private fun scanBarcode(): Boolean {
+        if(isInitB1D) {
+            Handler(Looper.getMainLooper()).post {
+                val result = barcode1D?.scan()
+                Log.d("Kotlin:MainActivity", "scan result: $result")
+            }
+        }
+        return true
+    }
+
+
+    // Barcodeの終了処理
+    private fun termBarcode(): Boolean {
+        if(isInitB1D) {
+            barcodeDecoder?.close()
+            isInitB1D = false
+        }
         return true
     }
 
@@ -425,6 +478,7 @@ class MainActivity : FlutterActivity() {
         stopRFIDScanInternal()
         termRFID()
         termQR()
+        termBarcode()
         toneGenerator.release()
         super.onDestroy()
     }
