@@ -31,9 +31,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+#  cupertino_icons: ^1.0.2
   device_info_plus: ^11.1.1
   package_info_plus: ^8.3.0
-#  flutter_native_splash: ^2.0.3
   path_provider: ^2.1.5
   flutter_file_dialog: ^3.0.2
   csv: ^5.0.1
@@ -46,12 +46,10 @@ dependencies:
   http: ^1.3.0
   nfc_manager: ^3.0.1
   flutter_native_splash: ^2.3.13
-#  uuid:^4.5.1
-#  url_launcher: ^..5
+
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -73,27 +71,19 @@ flutter_launcher_icons:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
 
-
-
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
-
+  uses-material-design: true
+  assets:
+    - assets/assets_tagsnap_image/
+    - assets/assets_icon_image/
 #スプラッシュ画面のデザイン
 flutter_native_splash:
-#  color: '#add8e6'
   image: 'assets/assets_tagsnap_image/TagSnap_01.png'
-#  color_dark: '#262626'
   image_dark: 'assets/assets_tagsnap_image/TagSnap_01.png'
   android_12:
-#    icon_background_color: '#add8e6'
     image: 'assets/assets_tagsnap_image/TagSnap_01.png'
-#    icon_background_color_dark: '#262626'
     image_dark: 'assets/assets_tagsnap_image/TagSnap_01.png'
-
-
-
-
-
