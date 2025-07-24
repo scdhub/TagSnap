@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
       onTap: () {
         FocusManager.instance.primaryFocus?.unfocus();
       },
-      behavior: HitTestBehavior.translucent, // ← これ重要！透明部分もタップを認識させる
+      behavior: HitTestBehavior.translucent, // 透明部分もタップを認識させる
       child: MaterialApp(
         debugShowCheckedModeBanner: false, // デバッグバナーを非表示
         title: 'TagSnap',

@@ -31,7 +31,7 @@ class AppTheme {
     ),
     contentTextStyle: TextStyle(
       color: Colors.black,
-      fontSize: 18,
+      fontSize: 16,//18
     ),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(12),

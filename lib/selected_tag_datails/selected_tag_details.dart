@@ -87,12 +87,19 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
 
     if (item == null) {
       print('取得失敗: レスポンス自体が null');
+      setState(() {
+      isLoading = false;        // ←ここを追加
+      });
       _showErrorDialog(
           'データの取得に失敗しました。\nネットワーク環境を確認してください。');
       return;
     }
+
     if (item['success'] != true) {
       print('取得失敗: ${item['message']}');
+      setState(() {
+      isLoading = false;        // ←ここを追加
+      });
       _showErrorDialog(
           'データの取得に失敗しました。\nサーバーからの応答: ${item['message']}');
       return;
@@ -100,7 +107,10 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
 
     final dataList = item['data'];
     if (dataList is! List || dataList.isEmpty) {
+      setState(() {
+      isLoading = false;        // ←ここを追加
       print('取得データが空です');
+      });
       _showErrorDialog('データが見つかりませんでした。');
       return;
     }
@@ -133,23 +143,20 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
       //　データを取り終わったら読込は終了する
 
       isLoading = false;
+      errorMessage = null;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    setState(() {
-      isDialogVisible = true;
-    });
-
-    return WillPopScope(
-      onWillPop: () async => !isLoading,
+    // return WillPopScope(
+      // onWillPop: () async => !isLoading,
         // onWillPop: () async => false,
-        child: Scaffold(
+        return Scaffold(
           resizeToAvoidBottomInset: false,
           appBar: AppBar(
-            // サーバ読込中は戻るボタンを非表示にする
-            automaticallyImplyLeading: !isLoading,
+            // // サーバ読込中は戻るボタンを非表示にする
+            // automaticallyImplyLeading: !isLoading,
             title: Text(
               '詳細',
               style: TextStyle(
@@ -198,7 +205,7 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
                           color: Colors.white)),
                   SizedBox(height: 5),
 
-                  Text(itemName!,
+                  Text(itemName ?? '-',
                       style:
                       TextStyle(fontSize: 18, color: Colors.white)),
                   SizedBox(height: 30),
@@ -232,7 +239,7 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
               ),
             ),
           ),
-        ));
+        );
   }
 
   Widget _buildDetailRow(String label, String value) {
@@ -252,6 +259,7 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
       ),
     );
   }
+
 
   void _showErrorDialog(String message) {
     showDialog(
@@ -291,8 +299,8 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
                           horizontal: 20, vertical: 10),
                     ),
                     onPressed: () {
-                      Navigator.pop(context); //詳細画面
-                      Navigator.pop(context); //トップ画面に戻る
+                      // Navigator.of(context).popUntil((route)=> route.isFirst);
+                      Navigator.pop(context); //戻る
                     },
                     child: Text(
                       "閉じる",
@@ -303,6 +311,7 @@ class _SelectedTagDetailsState extends State<SelectedTagDetails> {
                 ),
               ],
             ));
+
       },
     );
   }
