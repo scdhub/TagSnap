@@ -58,6 +58,8 @@ class _SearchPageState extends State<SearchPage>
   final ScrollController _headerScrollController = ScrollController();
   final ScrollController _listScrollController = ScrollController();
 
+
+
   // タブごとの縦スクロール用コントローラ
   final ScrollController _epcScrollController = ScrollController();
   final ScrollController _himodukeScrollController = ScrollController();
@@ -70,6 +72,8 @@ class _SearchPageState extends State<SearchPage>
 
   // 設定画面で選んだ CSV ファイルのパスから読み込むマップ
   Map<String, Map<String, String>> managementMap = {};
+
+
 
   //EPCを入力欄に表示させる処理
   Future<void> _onManualEpcChanged() async {
@@ -117,6 +121,19 @@ class _SearchPageState extends State<SearchPage>
   @override
   void initState() {
     super.initState();
+
+    _headerScrollController.addListener(() {
+      if (_listScrollController.hasClients
+          && _listScrollController.offset != _headerScrollController.offset) {
+        _listScrollController.jumpTo(_headerScrollController.offset);
+      }
+    });
+    _listScrollController.addListener(() {
+      if (_headerScrollController.hasClients
+          && _headerScrollController.offset != _listScrollController.offset) {
+        _headerScrollController.jumpTo(_listScrollController.offset);
+      }
+    });
     // コントローラ／フォーカスノードの生成
     _epcControllers    = List.generate(6, (_) => TextEditingController());
     _epcFocusNodes     = List.generate(6, (_) => FocusNode());
@@ -135,8 +152,35 @@ class _SearchPageState extends State<SearchPage>
     // CSVロード・初期選択も addPostFrameCallback にまとめる
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _loadCsvMapping();
+      //*********************************************
+      const testEpc = '202001010000000000000230';
+      managementMap[testEpc] = {
+        '種別': 'テスト種別',
+        '管理番号': '0001',
+      };
+
+      // epcList, himodukeList に１件だけセット
+      epcList = [
+        {
+          "No": "1",
+          "EPC": testEpc,
+          "名称": managementMap[testEpc]?["種別"]     ?? "",
+          "管理番号": managementMap[testEpc]?["管理番号"] ?? "",
+          "回数": "1",
+        },
+      ];
+      himodukeList = List.from(epcList);
+      // 画面を再描画
+      setState(() {});
+
+
+      //*********************************************
+
       _initListsFromCsv(); // epcList, himodukeList をセット
       await initializeRFID();
+
+
+
 
       // 読み取り画面から渡された EPC があれば…
       if (widget.initialSelectedEpc != null) {
@@ -591,7 +635,7 @@ class _SearchPageState extends State<SearchPage>
         children: selectedColumns.entries.where((e) => e.value).map((e) {
           // 列キー e.key に応じて幅を切り替え
           final width = (e.key == 'No')
-              ? 50.0 // No列だけ狭める
+              ? 40.0 // No列だけ狭める
               : cellWidth; // それ以外は従来どおり
           return Container(
             // width: 100,
@@ -689,7 +733,7 @@ class _SearchPageState extends State<SearchPage>
       Expanded(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          controller: _listScrollController,
+          controller:_listScrollController,
           child: Container(
             width: finalWidth,
             height: 300.0,

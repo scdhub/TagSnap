@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../tagnav_page/tagnav_page.dart'; // 追加
+
+
+// import '../../tagnav_page/tagnav_page.dart'; // 追加
 
 class TopTagnavBt extends StatefulWidget {
   const TopTagnavBt({super.key});

@@ -148,8 +148,8 @@ class _ReadingPageState extends State<ReadingPage>
       managementMap = await _csvMappingLoader.loadMapping('タグ');
 
       //★★★★★C66以外でのテスト用★★★★★★★★★★★★★★★
-      // const testEpc = '202001010000000000000230';
       const testEpc = '202001010000000000000230';
+      // const testEpc = '202001010000000000000235';
       epcList = [
         {
           "No": "1",
@@ -652,10 +652,11 @@ class _ReadingPageState extends State<ReadingPage>
             selectedColumns.entries.where((entry) => entry.value).map((entry) {
           // どの列か判定
           final isEPCcol = entry.key == 'EPC';
-          final isNoCol = entry.key == 'No' && _currentTab == "Himoduke";
+          final isNoCol = entry.key == 'No';
+          // final isNoCol = entry.key == 'No'&& _currentTab == "Himoduke";
           // 列ごとに幅を振り分け
           final w = isNoCol
-              ? 50.0 // No 列だけ狭める
+              ? 40.0 // No 列だけ狭める
               : isEPCcol
                   ? cellWidth // EPC 列は全体幅−他列幅 に合わせた動的セル幅
                   : 100.0; // それ以外は従来どおり

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:tagsnap/selected_tag_datails/selected_tag_details.dart';
+// import 'package:tagsnap/selected_tag_datails/selected_tag_details.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_inventory_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_led_btn.dart';
-import 'package:tagsnap/top_page_design/top_select_page_btn/top_loading_btn.dart';
+// import 'package:tagsnap/top_page_design/top_select_page_btn/top_loading_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_location_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_qr_btn.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_reading_btn.dart';
@@ -11,7 +11,7 @@ import 'package:tagsnap/top_page_design/top_select_page_btn/top_setting_btn.dart
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_tagnav_bt.dart';
 import 'package:tagsnap/top_page_design/top_select_page_btn/top_writing_btn.dart';
 
-import '../top_select_page_btn/datails.dart';
+// import '../top_select_page_btn/datails.dart';
 import '../top_select_page_btn/top_authentication_btn.dart';
 
 
