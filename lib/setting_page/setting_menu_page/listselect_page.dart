@@ -40,8 +40,8 @@ class _ListselectPageState extends State<ListselectPage> {
   // タイプごとのファイルパスを管理
   final Map<String, String?> _filePaths = {
     'タグ': null,
-    'QRコード': null,
-    'バーコード': null,
+    'QRコード/バーコード': null,
+    // 'バーコード': null,
   };
 
   @override
@@ -75,7 +75,7 @@ class _ListselectPageState extends State<ListselectPage> {
 
     final path = result.files.single.path!;
     try {
-      // ①File を開いて全行読み込み。
+      // File を開いて全行読み込み。
       final file = File(path);
       if (!await file.exists()) {
         // 念のためファイルが存在しないケース
@@ -84,7 +84,7 @@ class _ListselectPageState extends State<ListselectPage> {
       }
 
       final lines = await file.readAsLines();
-      // 2) 行数が 0 なら中身なし
+      // ファイルの中身　行数が 0 なら中身なし
       if (lines.isEmpty) {
         _showErrorDialog('ファイルが見つかりませんでした。');
         return;
@@ -256,7 +256,7 @@ class _ListselectPageState extends State<ListselectPage> {
                 child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      ...['タグ', 'QRコード', 'バーコード']
+                      ...['タグ', 'QRコード/バーコード']
                           .map((type) => _buildSection(type))
                           .toList(),
 
