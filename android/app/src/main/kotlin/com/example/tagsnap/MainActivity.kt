@@ -108,6 +108,8 @@ class MainActivity : FlutterActivity() {
                 }
                 // QR読み取り開始
                 "startQRScan" -> {
+                    // 都度初期化を行う（併せて結果をFlutter側に返した後に都度終了する）
+                    initQR()
                     result.success(startScanQRCode())
                 }
                 // QR読み取り停止
@@ -371,6 +373,8 @@ class MainActivity : FlutterActivity() {
 
                         }
                     }
+                    // 結果受信までの処理を終えたのでここで一度QRの終了処理を挟む
+                    termRFID()
                 }
             })
         }
@@ -412,7 +416,7 @@ class MainActivity : FlutterActivity() {
     private fun stopScanQRCode(): Boolean {
         if(isInitQR){
             barcodeDecoder?.stopScan()
-            isInitQR = false
+            termRFID()
         }
 
         return true
@@ -473,7 +477,7 @@ class MainActivity : FlutterActivity() {
         toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
     }
 
-    // 破棄時にも念のためRFIDの一通りの終了処理を行う
+    // 破棄時にも念のため一通りの終了処理を行う
     override fun onDestroy() {
         stopRFIDScanInternal()
         termRFID()

@@ -36,10 +36,10 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('TermRFID') ?? false;
   }
 
-  // QRコード初期化
-  static Future<bool> initQR() async {
-    return await _devChannel.invokeMethod<bool>('initQR') ?? false;
-  }
+  // // QRコード初期化(読み取りごとに初期化を行うように変更したため外部からの初期化は不通とする)
+  // static Future<bool> initQR() async {
+  //   return await _devChannel.invokeMethod<bool>('initQR') ?? false;
+  // }
 
   // QRコード読み取り
   static Future<bool> startQRScan() async {
@@ -51,10 +51,10 @@ class WrapperDeviceLib {
     return await _devChannel.invokeMethod<bool>('stopQRScan') ?? false;
   }
 
-  // QRコード終了
-  static Future<bool> termQR() async {
-    return await _devChannel.invokeMethod<bool>('TermQR') ?? false;
-  }
+  // // QRコード終了(読み取りごとに終了を行うように変更したため外部からの初期化は不通とする)
+  // static Future<bool> termQR() async {
+  //   return await _devChannel.invokeMethod<bool>('TermQR') ?? false;
+  // }
 
   // Barcode初期化
   static Future<bool> initBarcode() async {

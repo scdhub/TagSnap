@@ -195,7 +195,6 @@ class _ReadingPageState extends State<ReadingPage>
     _listScrollController.dispose();
 
     WrapperDeviceLib.termRFID();
-    WrapperDeviceLib.termQR();
 
     subscription?.cancel();
 
@@ -239,8 +238,6 @@ class _ReadingPageState extends State<ReadingPage>
   Future<void> initializeDevice() async {
     // RFID呼び出し用の初期化
     var isInit = await WrapperDeviceLib.initRFID();
-    // QR呼び出し用の初期化(こちらは特に結果を待たない)
-    await WrapperDeviceLib.initQR();
 
     if (isInit) {
       subscription = WrapperDeviceLib.receiveData().listen((event) async {

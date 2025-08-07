@@ -262,8 +262,6 @@ class _SearchPageState extends State<SearchPage>
 
   Future<void> initializeRFID() async {
     var isInit = await WrapperDeviceLib.initRFID();
-    // QR呼び出し用の初期化(こちらは特に結果を待たない)
-    await WrapperDeviceLib.initQR();
 
     if (isInit) {
       subscription = WrapperDeviceLib.receiveData().listen((event) {
