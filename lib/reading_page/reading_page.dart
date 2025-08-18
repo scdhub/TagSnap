@@ -85,6 +85,15 @@ class _ReadingPageState extends State<ReadingPage>
   void initState() {
     super.initState();
 
+    //　停止処理
+    _outerController = TabController(length: 2, vsync: this)
+      ..addListener(() async {
+        if (!_outerController.indexIsChanging) {
+          // タブ移動が完了した時に必ず停止
+          stopReading();
+        }
+      });
+
     //タグ/
     _tabController = TabController(length: 2, vsync: this)
       ..addListener(() {
@@ -106,6 +115,7 @@ class _ReadingPageState extends State<ReadingPage>
     // Outer: 「タグ, QRコード/バーコードに変更」
     _outerController = TabController(length: 2, vsync: this)
       ..addListener(() async {
+        if (_outerController.indexIsChanging) return;
         final body = _outerController.index == 0
             ? 'タグ': 'QRコード/バーコード';
         // : _outerController.index == 1
@@ -116,6 +126,30 @@ class _ReadingPageState extends State<ReadingPage>
         managementMap = await _csvMappingLoader.loadMapping(body);
         refreshHimoduke();
         // 既存の epcList などをリフレッシュ
+        if (_outerController.index == 1) {
+          if (isReading) {
+            try {
+              await WrapperDeviceLib.stopRFIDScan();
+            } catch (e) {
+              print('stopRFIDScan error: $e');
+            }
+            setState(() {
+              isReading = false;
+            });
+          }
+        } else {
+          // 逆に「タグタブに切り替えたときは QR を止めたい」ならここで止める
+          if (isQrReading) {
+            try {
+              await WrapperDeviceLib.stopQRScan();
+            } catch (e) {
+              print('stopQRScan error: $e');
+            }
+            setState(() {
+              isQrReading = false;
+            });
+          }
+        }
         setState(() {});
       });
 
@@ -148,20 +182,20 @@ class _ReadingPageState extends State<ReadingPage>
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       managementMap = await _csvMappingLoader.loadMapping('タグ');
 
-      //★★★★★C66以外でのテスト用★★★★★★★★★★★★★★★
-      const testEpc = '202001010000000000000230';
-      // const testEpc = '202001010000000000000235';
-      epcList = [
-        {
-          "No": "1",
-          "EPC": testEpc,
-          "名称": managementMap[testEpc]?["種別"]     ?? "",
-          "管理番号": managementMap[testEpc]?["管理番号"] ?? "",
-          "回数": "1",
-        },
-      ];
-      himodukeList = List.from(epcList); // 同じ内容で紐付けタブにも表示
-      //★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
+      // //★★★★★C66以外でのテスト用★★★★★★★★★★★★★★★
+      // const testEpc = '202001010000000000000230';
+      // // const testEpc = '202001010000000000000235';
+      // epcList = [
+      //   {
+      //     "No": "1",
+      //     "EPC": testEpc,
+      //     "名称": managementMap[testEpc]?["種別"]     ?? "",
+      //     "管理番号": managementMap[testEpc]?["管理番号"] ?? "",
+      //     "回数": "1",
+      //   },
+      // ];
+      // himodukeList = List.from(epcList); // 同じ内容で紐付けタブにも表示
+      // //★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★
 
 
 
@@ -276,9 +310,9 @@ class _ReadingPageState extends State<ReadingPage>
           }
           // 最後にUI更新
           updateData(epcList, "EPC");
+          updateData(himodukeQrList, "Himoduke");
           // updateData(himodukeList, "Himoduke");
           // updateData(qrList.map((e) => {'EPC': e['EPC'], '回数': e['回数']}).toList(), "EPC");
-          updateData(himodukeQrList, "Himoduke");
         } else if (event is QRInfoDataEvent) {
           if (!isQrReading) return;
           final getQrInfo = event.data;
@@ -322,11 +356,21 @@ class _ReadingPageState extends State<ReadingPage>
           updateData(himodukeList, "Himoduke");
           setState(() {});
 
+          //QRInfoDataEvent を受信したあと、必ずスキャンを止める処理が入っているのでコメントに
           if (isQrReading) {
-            await WrapperDeviceLib.stopQRScan();
-            setState(() {
-              isQrReading = false;
-            });
+          //Aパターン
+            bool aaaa=false;
+            if(true){
+              await WrapperDeviceLib.stopQRScan();
+              await WrapperDeviceLib.startQRScan();
+            //Bパターン　下記通さずに、そのままstartに飛ぶ
+            //   setState(() {
+            //     isQrReading = false;
+            //   });
+            }else{
+              await WrapperDeviceLib.startQRScan();
+            }
+
           }
         }
       }, onError: (error) {
