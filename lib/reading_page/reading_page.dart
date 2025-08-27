@@ -89,7 +89,7 @@ class _ReadingPageState extends State<ReadingPage>
     _outerController = TabController(length: 2, vsync: this)
       ..addListener(() async {
         if (!_outerController.indexIsChanging) {
-          // タブ移動が完了した時に必ず停止
+          // タブ切り替えが完了した時に必ず停止
           stopReading();
         }
       });
