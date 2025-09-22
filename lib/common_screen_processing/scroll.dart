@@ -2,7 +2,7 @@
 
 import 'package:flutter/widgets.dart';
 
-//ScrollSyncer は 2 つの ScrollController のオフセットを同期します。
+//ScrollSyncer は 2 つの ScrollController のオフセットを同期。
 class ScrollSyncer {
   final ScrollController primary;
   final ScrollController secondary;
